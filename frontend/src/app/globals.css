@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0F1419;
+  --bg-card: rgba(26, 31, 38, 0.85);
+  --bg-card-solid: #1A1F26;
+  --bg-card-hover: #242B33;
+  --text-high: #E2E8F0;
+  --text-medium: #9CA3AF;
+  --text-low: #5A6577;
+  --border-color: #2D3640;
+}
+
+:root.light {
+  --bg-primary: #F4F6F8;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-solid: #FFFFFF;
+  --bg-card-hover: #E8ECEF;
+  --text-high: #1E2329;
+  --text-medium: #5F6B7D;
+  --text-low: #8E9BAE;
+  --border-color: #D3DBE5;
+}
+
+@theme inline {
+  --color-brand: #00A868;
+  --color-brand-hover: #008C56;
+  --color-brand-dark: #003D1C;
+  --color-brand-light: #E6F9F0;
+  --color-brand-900: #001A0D;
+  
+  --color-surface-dark: var(--bg-primary);
+  --color-surface-dark-card: var(--bg-card-solid);
+  --color-surface-dark-hover: var(--bg-card-hover);
+  
+  --color-text-high: var(--text-high);
+  --color-text-medium: var(--text-medium);
+  --color-text-low: var(--text-low);
+  --color-border-dark: var(--border-color);
+  
+  --color-danger: #E53E3E;
+  --color-warning: #DD6B20;
+  --color-info: #3182CE;
+  --color-success: #00A868;
+  --color-expedite: #E53E3E;
+  --color-fixed-date: #DD6B20;
+  --color-standard: #3182CE;
+  --color-intangible: #805AD5;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ===== Base ===== */
+body {
+  background: var(--bg-primary);
+  color: var(--text-high);
+  font-family: var(--font-sans);
+}
+
+/* ===== Hide Scrollbar globally while keeping scrollability ===== */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
+}
+
+/* ===== Animations ===== */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 168, 104, 0.3); }
+  50% { box-shadow: 0 0 12px 4px rgba(0, 168, 104, 0.15); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animate-slide-in {
+  animation: slide-in-right 0.3s ease-out both;
+}
+
+/* ===== Glass Panel ===== */
+.glass-panel {
+  background: rgba(26, 31, 38, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+}
+
+/* ===== Chart.js tooltip override ===== */
+.chartjs-tooltip {
+  background: var(--color-surface-dark-card) !important;
+  border: 1px solid var(--color-border-dark) !important;
+  border-radius: 8px !important;
+}
+
+/* ===== Delay utility classes ===== */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-600 { animation-delay: 0.6s; }
+.delay-700 { animation-delay: 0.7s; }

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Estratégia Operacional Stone</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e0e3e5",
+                        "surface-container-high": "#e6e8ea",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#191c1e",
+                        "outline": "#6d7b6a",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#d8e3fb",
+                        "secondary-fixed-dim": "#bcc7de",
+                        "inverse-surface": "#2d3133",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed": "#111c2d",
+                        "on-primary-fixed": "#002105",
+                        "surface-tint": "#006e21",
+                        "primary-fixed": "#79fe82",
+                        "error-container": "#ffdad6",
+                        "surface-bright": "#f7f9fb",
+                        "tertiary": "#4d5d73",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-variant": "#e0e3e5",
+                        "on-secondary-container": "#586377",
+                        "error": "#ba1a1a",
+                        "inverse-primary": "#5ce069",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#3c475a",
+                        "on-tertiary": "#ffffff",
+                        "surface-container": "#eceef0",
+                        "on-primary-fixed-variant": "#005317",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "outline-variant": "#bdcbb7",
+                        "surface-container-low": "#f2f4f6",
+                        "on-surface-variant": "#3e4a3b",
+                        "primary": "#006b20",
+                        "background": "#f7f9fb",
+                        "on-primary-container": "#f7fff1",
+                        "surface": "#f7f9fb",
+                        "tertiary-container": "#66768d",
+                        "secondary": "#545f73",
+                        "primary-fixed-dim": "#5ce069",
+                        "secondary-container": "#d5e0f8",
+                        "primary-container": "#00872a",
+                        "on-tertiary-container": "#fdfcff",
+                        "tertiary-fixed": "#d3e4fe",
+                        "surface-dim": "#d8dadc",
+                        "on-surface": "#191c1e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "xs": "8px",
+                        "lg": "32px",
+                        "base": "4px",
+                        "xl": "48px",
+                        "container-max": "1280px",
+                        "sm": "16px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-surface dark:bg-inverse-surface border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim" data-icon="architecture">architecture</span>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary dark:text-primary-fixed-dim">Estratégia Stone</h1>
+</div>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant dark:text-surface-variant" data-icon="account_circle">account_circle</span>
+</div>
+</header>
+<main class="pt-20 pb-24 px-4 md:px-8 max-w-container-max mx-auto space-y-md">
+<!-- Strategy Header Hero -->
+<section class="space-y-xs py-xs">
+<div class="flex items-center gap-xs text-primary font-label-md">
+<span class="material-symbols-outlined text-[16px]" data-icon="shield">shield</span>
+<span>ORQUESTRAÇÃO TOTAL DO VAREJO</span>
+</div>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-on-surface">Estratégia de Inteligência Arquitetural</h2>
+<p class="text-on-surface-variant text-body-sm max-w-lg">Estrutura operacional para mitigar riscos de inatividade e otimizar métricas DORA em todo o ecossistema de POS da Stone.</p>
+</section>
+<!-- KPI Bento Grid Section -->
+<section class="grid grid-cols-2 md:grid-cols-4 gap-base">
+<div class="bg-surface-container-lowest p-4 border border-outline-variant rounded-lg flex flex-col justify-between">
+<span class="text-on-surface-variant text-label-md uppercase">Custo de Inatividade</span>
+<div class="mt-2">
+<span class="text-headline-sm font-bold text-error">$450</span>
+<span class="text-label-md text-on-surface-variant">/hr máx</span>
+</div>
+<div class="h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-error w-3/4"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 border border-outline-variant rounded-lg flex flex-col justify-between">
+<span class="text-on-surface-variant text-label-md uppercase">Falha de Mudança</span>
+<div class="mt-2">
+<span class="text-headline-sm font-bold text-primary">&lt;5%</span>
+<span class="text-label-md text-on-surface-variant">Meta Elite</span>
+</div>
+<div class="h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-primary w-1/4"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 border border-outline-variant rounded-lg flex flex-col justify-between">
+<span class="text-on-surface-variant text-label-md uppercase">Resolução Zero-Touch</span>
+<div class="mt-2">
+<span class="text-headline-sm font-bold text-tertiary">45%</span>
+<span class="text-label-md text-on-surface-variant">Objetivo IA</span>
+</div>
+<div class="h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-tertiary w-[45%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 border border-outline-variant rounded-lg flex flex-col justify-between">
+<span class="text-on-surface-variant text-label-md uppercase">FCR no Pico</span>
+<div class="mt-2">
+<span class="text-headline-sm font-bold text-primary">82%</span>
+<span class="text-label-md text-on-surface-variant">Meta</span>
+</div>
+<div class="h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+<div class="h-full bg-primary w-[82%]"></div>
+</div>
+</div>
+</section>
+<!-- Main Strategy Content -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<!-- Column 1: Engineering Flow & Kanban -->
+<section class="md:col-span-2 space-y-md">
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl space-y-sm">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-tertiary" data-icon="settings_suggest">settings_suggest</span>
+<h3 class="font-headline-sm text-headline-sm">Fluxo de Engenharia: DORA/Kanban</h3>
+</div>
+<div class="p-sm bg-surface-container-low border border-dashed border-outline rounded-lg">
+<div class="flex justify-between items-center mb-xs">
+<span class="text-label-md font-bold text-on-surface uppercase">BUFFER DE EMERGÊNCIA (20%)</span>
+<span class="text-label-md text-primary font-bold">ATIVO</span>
+</div>
+<div class="grid grid-cols-4 gap-base">
+<div class="h-12 bg-primary rounded"></div>
+<div class="h-12 bg-primary rounded opacity-70"></div>
+<div class="h-12 bg-surface-container-highest rounded border-2 border-primary-fixed-dim border-dashed flex items-center justify-center">
+<span class="text-[10px] text-primary font-bold">WIP ZERO</span>
+</div>
+<div class="h-12 bg-surface-container-highest rounded border-2 border-primary-fixed-dim border-dashed flex items-center justify-center">
+<span class="text-[10px] text-primary font-bold">WIP ZERO</span>
+</div>
+</div>
+</div>
+<p class="text-body-sm text-on-surface-variant italic">Citações: A implementação de métricas DORA acoplada a um buffer de WIP Zero de 20% garante elasticidade imediata durante interrupções de POS.</p>
+</div>
+<!-- Next-Gen AI Support -->
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl space-y-sm overflow-hidden relative">
+<div class="flex items-center gap-xs relative z-10">
+<span class="material-symbols-outlined text-tertiary" data-icon="smart_toy">smart_toy</span>
+<h3 class="font-headline-sm text-headline-sm">Triagem de Suporte com IA Agêntica</h3>
+</div>
+<div class="flex gap-sm overflow-x-auto hide-scrollbar relative z-10">
+<div class="flex-shrink-0 w-64 p-sm bg-surface-container rounded-lg border border-outline-variant">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary" data-icon="memory">memory</span>
+<span class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full">ELITE</span>
+</div>
+<h4 class="font-bold text-body-md mt-xs">Modelo de Orquestração</h4>
+<p class="text-[12px] mt-base text-on-surface-variant leading-tight">O fluxo agêntico identifica assinaturas de hardware com defeito com 98% de precisão.</p>
+</div>
+<div class="flex-shrink-0 w-64 p-sm bg-surface-container rounded-lg border border-outline-variant">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-secondary" data-icon="bolt">bolt</span>
+<span class="px-2 py-0.5 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-full">ATIVO</span>
+</div>
+<h4 class="font-bold text-body-md mt-xs">Resolução Zero-Touch</h4>
+<p class="text-[12px] mt-base text-on-surface-variant leading-tight">Remediação automatizada via API para gestão da carga cognitiva do gateway de pagamentos.</p>
+</div>
+</div>
+<!-- Subtle background decoration -->
+<div class="absolute -right-12 -bottom-12 opacity-5">
+<span class="material-symbols-outlined text-[200px]" data-icon="psychology">psychology</span>
+</div>
+</div>
+</section>
+<!-- Column 2: Action Plan / CTA -->
+<section class="space-y-md">
+<div class="bg-inverse-surface text-inverse-on-surface p-md rounded-xl space-y-md">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="fact_check">fact_check</span>
+<h3 class="font-headline-sm text-headline-sm">Plano de Ação do CTO</h3>
+</div>
+<ul class="space-y-sm">
+<li class="flex items-start gap-sm">
+<span class="w-6 h-6 bg-primary-fixed-dim text-on-primary-fixed font-bold rounded-full flex items-center justify-center text-xs flex-shrink-0">1</span>
+<div>
+<p class="text-body-sm font-bold">Implementar Buffers de WIP Zero</p>
+<p class="text-[12px] opacity-70">Estabelecer margem de 20% na engenharia para orquestração de pico no varejo.</p>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<span class="w-6 h-6 bg-primary-fixed-dim text-on-primary-fixed font-bold rounded-full flex items-center justify-center text-xs flex-shrink-0">2</span>
+<div>
+<p class="text-body-sm font-bold">Implantar Triagem Agêntica</p>
+<p class="text-[12px] opacity-70">Escalar o Suporte IA para atingir 45% de resolução Zero-Touch.</p>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<span class="w-6 h-6 bg-primary-fixed-dim text-on-primary-fixed font-bold rounded-full flex items-center justify-center text-xs flex-shrink-0">3</span>
+<div>
+<p class="text-body-sm font-bold">Alinhar DORA com NPS</p>
+<p class="text-[12px] opacity-70">Correlação direta entre Taxa de Falha de Mudança e Retenção de Lojistas.</p>
+</div>
+</li>
+</ul>
+<button class="w-full bg-primary text-on-primary py-3 rounded-lg font-bold hover:bg-opacity-90 transition-all flex items-center justify-center gap-xs">
+                        Autorizar Roadmap
+                        <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<!-- Reliability Context Card -->
+<div class="bg-surface-container-low border border-outline-variant p-md rounded-xl">
+<h4 class="font-label-md text-on-surface-variant mb-xs uppercase">Contexto de Negócio</h4>
+<p class="text-body-sm font-bold text-on-surface mb-base">O Custo da Inatividade</p>
+<p class="text-body-sm text-on-surface-variant">Interrupções desencadeiam uma migração permanente de 12% dos clientes. A confiabilidade continua sendo o driver #1 de retenção na proposta de valor da Stone.</p>
+<div class="mt-md">
+<img alt="Uma visualização de dados sofisticada mostrando um gráfico de linha onde as métricas de confiabilidade se correlacionam diretamente com as taxas de retenção de lojistas." class="w-full h-32 object-cover rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIU7hZWowxCXIVq5EE3unj87EGkdJg4wnzJc_SMOjOi512aW1D8uqLlcA6itfpvGpoIYcdWB8cFPu_gYj2DHwACm1lGtTr1kzqOS8mmIXKu93I6M2JDaOx4NFWGdn2XIYI2c5k-PU8IzxbNWDMRmmhIu2fyUuIwOYsj8UE0zheZCzzoTPTIFPs5j-GrPRyQ1jJw17M-O6_hhejos8LN1lK710uzqHtEn5W1bq5DlZq1v5fWH3FAOzO7NDV8Yy8mc4b_LmOQ3IafbVk"/>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-surface dark:bg-inverse-surface px-2 py-3 border-t border-outline-variant dark:border-outline">
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-transform duration-150 scale-95">
+<span class="material-symbols-outlined" data-icon="business_center">business_center</span>
+<span class="font-label-md text-label-md">Contexto</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-transform duration-150 scale-95">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-md text-label-md">Fluxo</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-primary-container dark:bg-on-primary-fixed-variant text-on-primary-container dark:text-primary-fixed rounded-full px-4 py-1 transition-transform duration-150 scale-95">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-label-md text-label-md">Suporte IA</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-transform duration-150 scale-95">
+<span class="material-symbols-outlined" data-icon="query_stats">query_stats</span>
+<span class="font-label-md text-label-md">Indicadores</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-transform duration-150 scale-95">
+<span class="material-symbols-outlined" data-icon="playlist_add_check">playlist_add_check</span>
+<span class="font-label-md text-label-md">Ação</span>
+</div>
+</nav>
+<script>
+        // Micro-interaction for hover states and button scales
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => btn.style.transform = 'scale(0.98)');
+            btn.addEventListener('mouseup', () => btn.style.transform = 'scale(1)');
+        });
+    </script>
+</body></html>

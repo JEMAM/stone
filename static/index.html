@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity | ITSM Preditivo & Ecossistema de IA Agêntica</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for modern metrics visualisations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Main Application JavaScript -->
+    <script src="/static/app.js" defer></script>
+</head>
+<body>
+    <!-- Premium Glowing Background Elements -->
+    <div class="glow-bg-1"></div>
+    <div class="glow-bg-2"></div>
+
+    <!-- Header Navigation -->
+    <header class="main-header">
+        <div class="logo-area">
+            <div class="logo-icon">▲</div>
+            <div class="logo-text">
+                <h1>ANTIGRAVITY</h1>
+                <span>Engine de ITSM Preditivo & IA Agêntica</span>
+            </div>
+        </div>
+        <div class="system-status">
+            <span class="status-indicator online"></span>
+            <span class="status-label">Motor Agêntico: Online (MCP Habilitado)</span>
+            <button id="reset-metrics-btn" class="secondary-btn">Reiniciar Simulação</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <main class="dashboard-grid">
+        
+        <!-- Left Pane: Kanban Workflows -->
+        <section class="left-pane glass-panel">
+            <div class="panel-header">
+                <h2>Gestão de Fluxo (Quadro Kanban)</h2>
+                <div class="header-actions">
+                    <button id="add-ticket-btn" class="primary-btn">+ Criar Chamado</button>
+                </div>
+            </div>
+
+            <!-- Kanban Columns Container -->
+            <div class="kanban-board">
+                <!-- Column: To Do -->
+                <div class="kanban-column" id="col-to_do">
+                    <div class="column-header">
+                        <h3>Backlog</h3>
+                        <span class="wip-badge no-limit">∞</span>
+                    </div>
+                    <div class="cards-container" id="container-to_do" ondragover="allowDrop(event)" ondrop="drop(event, 'to_do')"></div>
+                </div>
+
+                <!-- Column: Refinement -->
+                <div class="kanban-column" id="col-refinement">
+                    <div class="column-header">
+                        <h3>Refinamento</h3>
+                        <span class="wip-badge" id="wip-refinement">0/4</span>
+                    </div>
+                    <div class="wip-progress-bar"><div class="wip-fill" id="wip-fill-refinement" style="width: 0%;"></div></div>
+                    <div class="cards-container" id="container-refinement" ondragover="allowDrop(event)" ondrop="drop(event, 'refinement')"></div>
+                </div>
+
+                <!-- Column: Development -->
+                <div class="kanban-column" id="col-development">
+                    <div class="column-header">
+                        <h3>Desenvolvimento</h3>
+                        <span class="wip-badge" id="wip-development">0/3</span>
+                    </div>
+                    <div class="wip-progress-bar"><div class="wip-fill" id="wip-fill-development" style="width: 0%;"></div></div>
+                    <div class="cards-container" id="container-development" ondragover="allowDrop(event)" ondrop="drop(event, 'development')"></div>
+                </div>
+
+                <!-- Column: QA / Testing -->
+                <div class="kanban-column" id="col-qa_testing">
+                    <div class="column-header">
+                        <h3>QA & Testes</h3>
+                        <span class="wip-badge" id="wip-qa_testing">0/2</span>
+                    </div>
+                    <div class="wip-progress-bar"><div class="wip-fill" id="wip-fill-qa_testing" style="width: 0%;"></div></div>
+                    <div class="cards-container" id="container-qa_testing" ondragover="allowDrop(event)" ondrop="drop(event, 'qa_testing')"></div>
+                </div>
+
+                <!-- Column: Done / Ready -->
+                <div class="kanban-column" id="col-ready_for_deploy">
+                    <div class="column-header">
+                        <h3>Pronto para Deploy</h3>
+                        <span class="wip-badge no-limit">✓</span>
+                    </div>
+                    <div class="cards-container" id="container-ready_for_deploy" ondragover="allowDrop(event)" ondrop="drop(event, 'ready_for_deploy')"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Pane: Analytics & Agentic AI Ops -->
+        <section class="right-pane">
+            
+            <!-- Tab Navigation for Analytics vs AI Console -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" onclick="switchTab('analytics')">📊 Painéis de Desempenho</button>
+                <button class="tab-btn" onclick="switchTab('ai-ops')">🤖 Ops Center de IA Agêntica</button>
+                <button class="tab-btn" onclick="switchTab('strategy')">🎯 Estratégia Stone</button>
+            </div>
+
+            <!-- Tab Content: Analytics Dashboard -->
+            <div id="tab-analytics" class="tab-content active">
+                
+                <!-- Metrics Executive Cards Grid -->
+                <div class="metrics-grid">
+                    <!-- Card 1: DF -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Frequência de Deploy</span>
+                            <span class="metric-value" id="val-df">8.4/sem</span>
+                        </div>
+                        <div class="metric-badge status-good">Meta DORA Atingida</div>
+                    </div>
+                    <!-- Card 2: LTFC -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Lead Time para Mudanças</span>
+                            <span class="metric-value" id="val-ltfc">42.0m</span>
+                        </div>
+                        <div class="metric-badge status-good">&lt; 1 Hora</div>
+                    </div>
+                    <!-- Card 3: CFR -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Taxa de Falha de Mudanças</span>
+                            <span class="metric-value" id="val-cfr">4.2%</span>
+                        </div>
+                        <div class="metric-badge status-good">Meta &lt; 5%</div>
+                    </div>
+                    <!-- Card 4: MTTR -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Tempo Médio de Recuperação (MTTR)</span>
+                            <span class="metric-value" id="val-mttr">24.5m</span>
+                        </div>
+                        <div class="metric-badge status-good">Meta &lt; 30m</div>
+                    </div>
+                    <!-- Card 5: FRT -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Primeiro Tempo de Resposta</span>
+                            <span class="metric-value" id="val-frt">18.0s</span>
+                        </div>
+                        <div class="metric-badge status-good">Motor de IA Ativo</div>
+                    </div>
+                    <!-- Card 6: FCR -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Resolução no 1º Contato (FCR)</span>
+                            <span class="metric-value" id="val-fcr">78.5%</span>
+                        </div>
+                        <div class="metric-badge status-good">Otimizado</div>
+                    </div>
+                    <!-- Card 7: Self-Service Adoption -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Adoção de Autoatendimento</span>
+                            <span class="metric-value" id="val-ssa">52.1%</span>
+                        </div>
+                        <div class="metric-badge status-good">Defletindo &gt;50%</div>
+                    </div>
+                    <!-- Card 8: CSAT -->
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Satisfação do Cliente (CSAT)</span>
+                            <span class="metric-value" id="val-csat">96.2%</span>
+                        </div>
+                        <div class="metric-badge status-good">Meta &gt;95%</div>
+                    </div>
+                </div>
+
+                <!-- Charts Layout -->
+                <div class="charts-row">
+                    <div class="chart-container glass-panel">
+                        <h3>Métricas DORA de Performance DevOps vs Alvos do Setor</h3>
+                        <canvas id="doraChart"></canvas>
+                    </div>
+                    <div class="chart-container glass-panel">
+                        <h3>SLA do Service Desk e Índices de Experiência</h3>
+                        <canvas id="slaChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Explanatory Value Banner -->
+                <div class="value-banner glass-panel">
+                    <div class="banner-icon">⚡</div>
+                    <div class="banner-text">
+                        <h4>Resolvendo o "Efeito Melancia" no ITSM</h4>
+                        <p>Diferente das filas tradicionais de suporte, o Antigravity monitora o fluxo de ponta a ponta. Havendo gargalos, limites de WIP travam o sistema para forçar resoluções. Atualizações em tempo real associam incidentes a deploys específicos instantaneamente.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Agentic AI Ops Center -->
+            <div id="tab-ai-ops" class="tab-content">
+                
+                <!-- Top Split: Ticket Console & Triage -->
+                <div class="ai-ops-top-grid">
+                    
+                    <!-- Area 1: Selected Ticket details & Action Center -->
+                    <div class="glass-panel detail-panel" id="ticket-detail-panel">
+                        <div class="panel-subheader">
+                            <h3>Controlador de Operações</h3>
+                            <span class="badge" id="detail-ticket-cos">Nenhum Chamado Selecionado</span>
+                        </div>
+                        <div id="detail-empty-state" class="empty-state">
+                            <p>Selecione um chamado no Quadro Kanban para gerenciar detalhes, analisar triagem, rodar automações do agente de IA ou revisar critérios de saída.</p>
+                        </div>
+                        <div id="detail-content" class="hidden">
+                            <h4 id="detail-ticket-title">Título do Chamado</h4>
+                            <div class="meta-row">
+                                <span class="tag" id="detail-ticket-type">Tipo</span>
+                                <span>Atribuído a: <strong id="detail-ticket-assignee">Nome</strong></span>
+                                <span id="detail-wip-warning" class="warning-tag hidden">⚠️ WIP Excedido</span>
+                            </div>
+                            <p id="detail-ticket-desc" class="ticket-desc-detail">Descrição</p>
+                            
+                            <!-- AI Summarizer Card -->
+                            <div class="ai-summary-block">
+                                <div class="summary-title-row">
+                                    <strong>🤖 Resumo Contextual por IA:</strong>
+                                    <button id="generate-summary-btn" class="tiny-btn">Regerar Resumo</button>
+                                </div>
+                                <div class="summary-body" id="detail-ticket-summary">
+                                    Nenhum resumo gerado. Clique em Regerar.
+                                </div>
+                            </div>
+
+                            <!-- Exit Criteria Checklist -->
+                            <div class="exit-criteria-block">
+                                <strong>📋 Critérios de Saída Explícitos para a coluna: <span id="criteria-column-name">Desenvolvimento</span></strong>
+                                <div id="checklist-container">
+                                    <!-- Dynamic checklists based on columns -->
+                                </div>
+                            </div>
+
+                            <!-- Operations Action Button -->
+                            <div class="action-buttons-row">
+                                <button id="run-agent-btn" class="primary-btn agent-btn">🤖 Rodar Agente Autônomo de IA (MCP)</button>
+                                <button id="delete-ticket-btn" class="danger-btn">Excluir</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Area 2: Natural Language Triage Sandbox -->
+                    <div class="glass-panel triage-panel">
+                        <h3>Analisador de Triagem Inteligente</h3>
+                        <p class="section-desc">Cole uma mensagem de canal de suporte ou alerta de incidentes para que a IA faça classificação automática, atribua a prioridade de Classe de Serviço e direcione à squad técnica correta.</p>
+                        <textarea id="triage-input" placeholder="Ex: URGENTE FORA DO AR: O container Postgres de produção travou com conexão recusada na porta 5432 após atualização do microserviço. Necessário failover imediato."></textarea>
+                        <button id="run-triage-btn" class="secondary-btn w-full">Triar Mensagem & Classificar</button>
+                        
+                        <div id="triage-result" class="triage-result hidden">
+                            <div class="result-row">
+                                <span class="res-lbl">Tipo Atribuído:</span>
+                                <span id="triage-res-type" class="res-val-badge">Incidente</span>
+                            </div>
+                            <div class="result-row">
+                                <span class="res-lbl">Classe de Serviço:</span>
+                                <span id="triage-res-cos" class="res-val-badge">Expedido</span>
+                            </div>
+                            <div class="result-row">
+                                <span class="res-lbl">Fila Técnica (Squad):</span>
+                                <span id="triage-res-squad" class="res-val">SRE Infraestrutura</span>
+                            </div>
+                            <div class="result-row">
+                                <span class="res-lbl">Confiança:</span>
+                                <span id="triage-res-conf" class="res-val">94%</span>
+                            </div>
+                            <p id="triage-res-reason" class="triage-reason">Raciocínio de classificação aqui...</p>
+                            <button id="triage-create-ticket-btn" class="primary-btn w-full mt-2">Criar e Direcionar Chamado</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Split: Terminal Console & Semantic Search / Drafts -->
+                <div class="ai-ops-bottom-grid">
+                    
+                    <!-- Terminal Console View -->
+                    <div class="glass-panel console-panel">
+                        <div class="console-header">
+                            <div class="console-dot red"></div>
+                            <div class="console-dot yellow"></div>
+                            <div class="console-dot green"></div>
+                            <span class="console-title">antigravity@agente-mcp: ~</span>
+                        </div>
+                        <div class="console-body" id="console-logs">
+                            <div class="log-line system-line">[SISTEMA] Sessão do Agente de IA Antigravity inicializada. Aguardando execução de tarefas...</div>
+                        </div>
+                    </div>
+
+                    <!-- Semantic Search & Drafts Hub -->
+                    <div class="glass-panel kb-panel">
+                        <h3>Base de Conhecimento Semântica</h3>
+                        <div class="search-box-row">
+                            <input type="text" id="kb-search-input" placeholder="Consulte a base (ex: 'container comunicando com postgres')">
+                            <button id="kb-search-btn" class="primary-btn">Pesquisa Semântica</button>
+                        </div>
+                        
+                        <!-- Search Results -->
+                        <div id="search-results-container" class="search-results-area hidden">
+                            <h4>Subseções Correspondentes</h4>
+                            <div id="search-results-list"></div>
+                        </div>
+
+                        <!-- Gap analysis & Draft queue -->
+                        <div class="gap-analysis-area">
+                            <h4>Revisão de Lacunas de Documentação (Gap Analysis)</h4>
+                            <div id="draft-queue-list">
+                                <p class="empty-text">Nenhuma lacuna de documentação identificada no momento.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gemini Chat Process Analyzer Panel -->
+                <div class="glass-panel gemini-chat-panel" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; padding: 1.2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem;">
+                        <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>🤖</span> Análise de Processos via Chat Gemini
+                        </h3>
+                        <!-- Configuration elements -->
+                        <div style="display: flex; gap: 0.8rem; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <label for="gemini-api-key" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 0;">API Key:</label>
+                                <input type="password" id="gemini-api-key" placeholder="AIzaSy..." style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); padding: 0.3rem 0.5rem; font-size: 0.72rem; width: 160px; outline: none;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <label for="gemini-model" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 0;">Modelo:</label>
+                                <select id="gemini-model" style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); padding: 0.25rem 0.5rem; font-size: 0.72rem; outline: none; cursor: pointer;">
+                                    <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages Screen -->
+                    <div id="gemini-chat-messages" style="height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.8rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+                        <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                            <span style="font-size: 1.1rem; flex-shrink: 0;">🤖</span>
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.78rem; line-height: 1.4; color: var(--text-main); max-width: 85%;">
+                                Olá! Sou o especialista em processos do Antigravity. Insira sua **Gemini API Key** e selecione o modelo acima para iniciar uma análise interativa do fluxo do Kanban, limites de WIP, métricas DORA e KPIs de SLA do seu projeto.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input Box -->
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="gemini-chat-input" placeholder="Pergunte-me algo sobre os gargalos do processo ou métricas DORA..." style="flex-grow: 1; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main); padding: 0.6rem 0.8rem; font-size: 0.8rem; outline: none;">
+                        <button id="gemini-chat-send-btn" class="primary-btn" style="padding: 0.6rem 1.2rem;">Enviar</button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Tab Content: Estratégia Executiva (Stitch Screen) -->
+            <div id="tab-strategy" class="tab-content">
+                <!-- Strategy Header Hero -->
+                <div class="value-banner glass-panel" style="margin-bottom: 1.5rem;">
+                    <div class="banner-icon">🛡️</div>
+                    <div class="banner-text">
+                        <span style="font-size: 0.65rem; font-weight: 700; color: var(--cos-intangible); text-transform: uppercase; letter-spacing: 0.05rem;">Orquestração Total do Varejo</span>
+                        <h4 style="margin: 0.2rem 0; font-size: 1.2rem;">Estratégia de Inteligência Arquitetural</h4>
+                        <p style="font-size: 0.75rem;">Estrutura operacional para mitigar riscos de inatividade e otimizar métricas DORA em todo o ecossistema de POS da Stone.</p>
+                    </div>
+                </div>
+
+                <!-- KPI Bento Grid Section -->
+                <div class="strategy-bento">
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Custo de Inatividade</span>
+                            <span class="metric-value" style="color: var(--cos-expedite); background: none; -webkit-text-fill-color: initial;">$450/hr máx</span>
+                        </div>
+                        <div class="wip-progress-bar" style="height: 4px; margin-top: 0.3rem;"><div class="wip-fill wip-alert" style="width: 75%;"></div></div>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Falha de Mudança</span>
+                            <span class="metric-value" style="color: var(--cos-intangible); background: none; -webkit-text-fill-color: initial;">&lt;5%</span>
+                        </div>
+                        <div class="wip-progress-bar" style="height: 4px; margin-top: 0.3rem;"><div class="wip-fill" style="width: 25%; background: var(--cos-intangible);"></div></div>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">Resolução Zero-Touch</span>
+                            <span class="metric-value">45%</span>
+                        </div>
+                        <div class="wip-progress-bar" style="height: 4px; margin-top: 0.3rem;"><div class="wip-fill" style="width: 45%; background: var(--primary-solid);"></div></div>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <div class="metric-info">
+                            <span class="metric-label">FCR no Pico</span>
+                            <span class="metric-value" style="color: var(--cos-intangible); background: none; -webkit-text-fill-color: initial;">82%</span>
+                        </div>
+                        <div class="wip-progress-bar" style="height: 4px; margin-top: 0.3rem;"><div class="wip-fill" style="width: 82%; background: var(--cos-intangible);"></div></div>
+                    </div>
+                </div>
+
+                <!-- Main Strategy Grid -->
+                <div class="strategy-content-row">
+                    <!-- Column 1: Engineering Flow & Support -->
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <!-- Kanban WIP zero block -->
+                        <div class="glass-panel" style="padding: 1.2rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem;">
+                                <span style="font-size: 1.2rem;">⚙️</span>
+                                <h4 style="margin: 0; font-size: 0.95rem;">Fluxo de Engenharia: DORA/Kanban</h4>
+                            </div>
+                            <div class="wip-buffer-widget">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <span style="font-size: 0.7rem; font-weight: 700;">BUFFER DE EMERGÊNCIA (20%)</span>
+                                    <span style="font-size: 0.7rem; font-weight: 700; color: var(--cos-intangible);">ATIVO</span>
+                                </div>
+                                <div class="wip-buffer-grid">
+                                    <div class="wip-buffer-cell active">WIP 1</div>
+                                    <div class="wip-buffer-cell active-dim">WIP 2</div>
+                                    <div class="wip-buffer-cell zero">WIP ZERO</div>
+                                    <div class="wip-buffer-cell zero">WIP ZERO</div>
+                                </div>
+                            </div>
+                            <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.8rem; font-style: italic; line-height: 1.3;">
+                                "A implementação de métricas DORA acoplada a um buffer de WIP Zero de 20% garante elasticidade imediata durante interrupções de POS."
+                            </p>
+                        </div>
+
+                        <!-- AI Agent Support cards scroll -->
+                        <div class="glass-panel" style="padding: 1.2rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem;">
+                                <span style="font-size: 1.2rem;">🤖</span>
+                                <h4 style="margin: 0; font-size: 0.95rem;">Triagem de Suporte com IA Agêntica</h4>
+                            </div>
+                            <div class="ai-support-cards">
+                                <div class="ai-support-card">
+                                    <div class="card-top">
+                                        <span class="card-icon">🧠</span>
+                                        <span class="card-badge">ELITE</span>
+                                    </div>
+                                    <div>
+                                        <h4>Modelo de Orquestração</h4>
+                                        <p>O fluxo agêntico identifica assinaturas de hardware com defeito com 98% de precisão.</p>
+                                    </div>
+                                </div>
+                                <div class="ai-support-card">
+                                    <div class="card-top">
+                                        <span class="card-icon">⚡</span>
+                                        <span class="card-badge">ATIVO</span>
+                                    </div>
+                                    <div>
+                                        <h4>Resolução Zero-Touch</h4>
+                                        <p>Remediação automatizada via API para gestão da carga cognitiva do gateway de pagamentos.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: CTO Action Plan & Context -->
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <!-- CTO Action Plan -->
+                        <div class="glass-panel" style="padding: 1.2rem; background: rgba(30, 27, 75, 0.2); border: 1px solid rgba(99, 102, 241, 0.3);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                <span style="font-size: 1.2rem; color: var(--cos-intangible);">📋</span>
+                                <h4 style="margin: 0; font-size: 0.95rem;">Plano de Ação do CTO</h4>
+                            </div>
+                            <ul class="cto-action-list">
+                                <li class="cto-action-item">
+                                    <span class="badge-number">1</span>
+                                    <div>
+                                        <p style="font-size: 0.78rem; font-weight: 700; margin: 0;">Implementar Buffers de WIP Zero</p>
+                                        <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.1rem 0 0 0;">Estabelecer margem de 20% na engenharia para orquestração de pico no varejo.</p>
+                                    </div>
+                                </li>
+                                <li class="cto-action-item">
+                                    <span class="badge-number">2</span>
+                                    <div>
+                                        <p style="font-size: 0.78rem; font-weight: 700; margin: 0;">Implantar Triagem Agêntica</p>
+                                        <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.1rem 0 0 0;">Escalar o Suporte IA para atingir 45% de resolução Zero-Touch.</p>
+                                    </div>
+                                </li>
+                                <li class="cto-action-item">
+                                    <span class="badge-number">3</span>
+                                    <div>
+                                        <p style="font-size: 0.78rem; font-weight: 700; margin: 0;">Alinhar DORA com NPS</p>
+                                        <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.1rem 0 0 0;">Correlação direta entre Taxa de Falha de Mudança e Retenção de Lojistas.</p>
+                                    </div>
+                                </li>
+                            </ul>
+                            <button class="primary-btn cta-button">Autorizar Roadmap ➔</button>
+                        </div>
+
+                        <!-- Reliability card -->
+                        <div class="glass-panel" style="padding: 1.2rem;">
+                            <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05rem;">Contexto de Negócio</span>
+                            <h4 style="margin: 0.2rem 0; font-size: 0.85rem;">O Custo da Inatividade</h4>
+                            <p style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.5rem;">
+                                Interrupções desencadeiam uma migração permanente de 12% dos clientes. A confiabilidade continua sendo o driver #1 de retenção na proposta de valor da Stone.
+                            </p>
+                            <!-- Reliability chart image -->
+                            <div class="reliability-chart-box">
+                                <img src="/static/screen_pt.png" style="object-position: 50% 90%; height: 120px; object-fit: cover;" alt="Visualização de Confiabilidade da Stone">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Create Ticket Modal -->
+    <div id="create-ticket-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <h3>Criar Novo Chamado</h3>
+            <form id="create-ticket-form">
+                <div class="form-group">
+                    <label for="ticket-title">Título</label>
+                    <input type="text" id="ticket-title" required placeholder="Ex: Configurar limites de memória do Redis">
+                </div>
+                <div class="form-group">
+                    <label for="ticket-description">Descrição</label>
+                    <textarea id="ticket-description" required placeholder="Forneça detalhes técnicos ou mensagens de erro detalhadas..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ticket-type">Tipo de Chamado</label>
+                        <select id="ticket-type">
+                            <option value="Incident">Incidente (Indisponibilidade)</option>
+                            <option value="Bug">Bug (Defeito no Código)</option>
+                            <option value="Feature" selected>Funcionalidade (Nova Feature)</option>
+                            <option value="Patch">Patch (Ajuste Emergencial)</option>
+                            <option value="Update">Atualização (Manutenção)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ticket-cos">Classe de Serviço</label>
+                        <select id="ticket-cos">
+                            <option value="Expedite">⚡ Expedido (P1 Alto Risco / Queda)</option>
+                            <option value="Fixed Date">📅 Data de Entrega Fixa</option>
+                            <option value="Standard" selected>⚙️ Padrão</option>
+                            <option value="Intangible">💡 Intangível (Dívida Técnica/Refatorar)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ticket-assignee">Atribuído a</label>
+                    <select id="ticket-assignee">
+                        <option value="AI Agent" selected>🤖 Agente Autônomo de IA</option>
+                        <option value="Sarah Lin">Sarah Lin (App Dev)</option>
+                        <option value="David K.">David K. (SRE)</option>
+                        <option value="Lucas M.">Lucas M. (Core Dev)</option>
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="close-modal-btn" class="secondary-btn">Cancelar</button>
+                    <button type="submit" class="primary-btn">Criar Chamado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>
