@@ -90,7 +90,21 @@ export type LaneId = (typeof LANES)[number]["id"];
 
 // === Gemini ===
 export const GEMINI_MODELS = [
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  // Gemini 3.5 Pro — Frontier reasoning, complex agentic workflows
+  { id: "gemini-3.5-pro-high", label: "Gemini 3.5 Pro (High Thinking)", group: "3.5 Pro" },
+  { id: "gemini-3.5-pro-medium", label: "Gemini 3.5 Pro (Medium Thinking)", group: "3.5 Pro" },
+  { id: "gemini-3.5-pro-low", label: "Gemini 3.5 Pro (Low Thinking)", group: "3.5 Pro" },
+  { id: "gemini-3.5-pro-none", label: "Gemini 3.5 Pro (No Thinking)", group: "3.5 Pro" },
+  // Gemini 3.5 Flash — Fast and efficient for routine tasks
+  { id: "gemini-3.5-flash-medium", label: "Gemini 3.5 Flash (Medium Thinking)", group: "3.5 Flash" },
+  { id: "gemini-3.5-flash-high", label: "Gemini 3.5 Flash (High Thinking)", group: "3.5 Flash" },
+  { id: "gemini-3.5-flash-low", label: "Gemini 3.5 Flash (Low Thinking)", group: "3.5 Flash" },
+  { id: "gemini-3.5-flash-none", label: "Gemini 3.5 Flash (No Thinking)", group: "3.5 Flash" },
+  // Gemini 3.1 Pro — High-accuracy reasoning
+  { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (High Thinking)", group: "3.1 Pro" },
+  { id: "gemini-3.1-pro-medium", label: "Gemini 3.1 Pro (Medium Thinking)", group: "3.1 Pro" },
+  { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro (Low Thinking)", group: "3.1 Pro" },
+  { id: "gemini-3.1-pro-none", label: "Gemini 3.1 Pro (No Thinking)", group: "3.1 Pro" },
+  // Gemini 3.1 Flash Lite — Budget-friendly high-volume tasks
+  { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite", group: "3.1 Flash Lite" },
 ] as const;

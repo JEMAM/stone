@@ -505,18 +505,59 @@ CHAMADOS NO QUADRO KANBAN:
     for t in TICKETS_DB.values():
         system_context += f"- [#{t.id}] {t.title} (Coluna: {t.lane}, Tipo: {t.type}, Classe de Serviço: {t.class_of_service}, Atribuído a: {t.assignee})\n  Descrição: {t.description}\n"
         
+    # Parse model identifier into base model name + thinking budget
+    # Format: "gemini-{version}-{variant}-{thinking_level}" or "gemini-{version}-{variant}"
+    thinking_budgets = {
+        "high": 24576,
+        "medium": 8192,
+        "low": 2048,
+        "none": 0,
+    }
+    
+    parts = req.model.rsplit("-", 1)
+    thinking_level = parts[-1] if parts[-1] in thinking_budgets else None
+    base_model_key = parts[0] if thinking_level else req.model
+    
+    model_map = {
+        "gemini-3.5-pro": "gemini-3.5-pro",
+        "gemini-3.5-flash": "gemini-3.5-flash",
+        "gemini-3.1-pro": "gemini-3.1-pro",
+        "gemini-3.1-flash-lite": "gemini-3.1-flash-lite",
+    }
+    actual_model = model_map.get(base_model_key, base_model_key)
+    
     # Call Gemini API
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{req.model}:generateContent?key={req.api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{actual_model}:generateContent?key={req.api_key}"
     
     payload = {
+        "systemInstruction": {
+            "parts": [{"text": system_context}]
+        },
         "contents": [
             {
                 "parts": [
-                    {"text": system_context + f"\n\nPergunta do Usuário: {req.message}\nResponda em português de forma concisa e profissional, propondo soluções pragmáticas para os problemas de fluxo e SLA apresentados."}
+                    {"text": f"{req.message}\nResponda em português de forma concisa e profissional, propondo soluções pragmáticas para os problemas de fluxo e SLA apresentados."}
                 ]
             }
-        ]
+        ],
+        "generationConfig": {}
     }
+    
+    # Add thinking config if applicable
+    if thinking_level and thinking_level in thinking_budgets:
+        budget = thinking_budgets[thinking_level]
+        if budget > 0:
+            payload["generationConfig"]["thinkingConfig"] = {
+                "thinkingBudget": budget
+            }
+        else:
+            payload["generationConfig"]["thinkingConfig"] = {
+                "thinkingBudget": 0
+            }
+    
+    # Clean up empty generationConfig
+    if not payload["generationConfig"]:
+        del payload["generationConfig"]
     
     try:
         req_data = json.dumps(payload).encode("utf-8")

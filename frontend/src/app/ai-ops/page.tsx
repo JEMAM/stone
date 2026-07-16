@@ -183,8 +183,12 @@ export default function AiOpsPage() {
               onChange={(e) => setGeminiModel(e.target.value)}
               className="rounded-xl border border-border-dark bg-surface-dark px-3 py-1.5 text-xs text-text-high focus:border-brand focus:outline-none"
             >
-              {GEMINI_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
+              {Array.from(new Set(GEMINI_MODELS.map((m) => m.group))).map((group) => (
+                <optgroup key={group} label={group}>
+                  {GEMINI_MODELS.filter((m) => m.group === group).map((m) => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
