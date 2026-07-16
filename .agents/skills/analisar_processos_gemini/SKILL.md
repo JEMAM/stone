@@ -1,6 +1,6 @@
 ---
 name: analisar_processos_gemini
-description: Instruções e scripts para analisar processos de ITSM e métricas DORA do Antigravity usando a API do Gemini com chave personalizada, seleção de modelo e configuração de thinking budget.
+description: Instruções e scripts para analisar processos de ITSM e métricas DORA  usando a API do Gemini com chave personalizada, seleção de modelo e configuração de thinking budget.
 ---
 
 # Análise de Processos com Gemini
