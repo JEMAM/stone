@@ -12,7 +12,7 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(
-    title="Antigravity ITSM & Agentic AI Platform",
+    title="MVP ITSM & Agentic AI Platform",
     description="Backend service for tracking Kanban flows, DORA metrics, and Agentic AI operations.",
     version="1.0.0"
 )
@@ -488,7 +488,7 @@ async def gemini_chat(req: GeminiChatRequest):
         raise HTTPException(status_code=400, detail="Gemini API Key não fornecida.")
         
     # Build context from current operational status
-    system_context = f"""Você é o Engenheiro Especialista em Processos da Antigravity, analisando o ecossistema ITSM e DevOps da Stone.
+    system_context = f"""Você é o Engenheiro Especialista em Processos do MVP, analisando o ecossistema ITSM e DevOps da Stone.
 
 MÉTRICAS ATUAIS:
 - Frequência de Deploy: {METRICS['deployment_frequency']}/semana
@@ -608,7 +608,7 @@ def kb_search(query_in: SearchQuery):
         content = f"""# {title}
 
 ## Visão Geral do Problema
-Uma busca por `{query}` retornou zero resultados na Base de Conhecimento do Antigravity. Uma auditoria assistida por IA sinalizou essa lacuna de documentação e rascunhou este guia de resolução.
+Uma busca por `{query}` retornou zero resultados na Base de Conhecimento do MVP. Uma auditoria assistida por IA sinalizou essa lacuna de documentação e rascunhou este guia de resolução.
 
 ## Possíveis Causas Raiz
 1. **Incompatibilidade de Rede**: Os serviços estão executando em redes virtuais diferentes no ambiente de container Docker.
@@ -703,10 +703,10 @@ def stream_agent_run(ticket_id: str):
         elif is_s3:
             steps = [
                 ("Validando credenciais IAM e limites de políticas AWS do workspace...", 15),
-                ("Verificando se já existe bucket conflitante no namespace 'antigravity-dev-assets'...", 30),
-                ("Ação: call_mcp_tool -> aws_mcp_server/create_bucket (args: {'bucket_name': 'antigravity-dev-assets', 'region': 'us-east-1'})", 50),
+                ("Verificando se já existe bucket conflitante no namespace 'mvp-dev-assets'...", 30),
+                ("Ação: call_mcp_tool -> aws_mcp_server/create_bucket (args: {'bucket_name': 'mvp-dev-assets', 'region': 'us-east-1'})", 50),
                 ("Bucket provisionado. Aplicando políticas IAM de segurança de leitura/escrita...", 70),
-                ("Ação: call_mcp_tool -> aws_mcp_server/put_bucket_policy (args: {'bucket_name': 'antigravity-dev-assets'})", 85),
+                ("Ação: call_mcp_tool -> aws_mcp_server/put_bucket_policy (args: {'bucket_name': 'mvp-dev-assets'})", 85),
                 ("Resposta do comando de verificação do bucket: HTTP 200 OK.", 95),
                 ("Sucesso! Bucket S3 provisionado. Chamado #102 atualizado para status 'PRONTO'.", 100)
             ]
@@ -720,7 +720,7 @@ def stream_agent_run(ticket_id: str):
                 ("Sucesso! Chamado resolvido pelo agente. Status atualizado para 'PRONTO'.", 100)
             ]
             
-        yield f"data: {json.dumps({'message': '🤖 Iniciando Agente Autônomo Antigravity (MCP Habilitado)...', 'progress': 0})}\n\n"
+        yield f"data: {json.dumps({'message': '🤖 Iniciando Agente Autônomo MVP (MCP Habilitado)...', 'progress': 0})}\n\n"
         await asyncio.sleep(0.8)
         
         for msg, progress in steps:
