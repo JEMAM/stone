@@ -42,7 +42,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex flex-col gap-1 border-b border-border-dark px-6 py-5">
         <div className="flex items-center gap-2">
-          <img src="/stone-logo.png" alt="Stone" className="h-7 w-auto object-contain" />
+          <span className="text-lg font-bold text-white tracking-wider">ANTIGRAVITY</span>
         </div>
         <p className="text-[10px] tracking-wider text-text-low font-bold uppercase">ITSM & Agentic AI</p>
       </div>
