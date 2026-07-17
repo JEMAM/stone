@@ -152,13 +152,18 @@ Aqui está a inteligência integrada que automatiza o trabalho repetitivo:
 *   **Didático:** É o triador do pronto-socorro. Lê a reclamação e diz: *"Isso é crítico, mande para a Squad de Infraestrutura"*.
 *   **Por Trás:** O frontend envia o texto do chamado para `POST /api/ai/triage`. O backend envia um prompt estruturado para o modelo Gemini descrevendo as regras de classificação da Stone. O Gemini retorna um JSON contendo o tipo, squad, impacto e a justificativa técnica.
 
-### B. Base de Conhecimento Semântica & Análise de Lacunas (Gap Analysis)
-*   **Didático:** Você pesquisa na biblioteca. Se o livro não existe, o bibliotecário senta e escreve o livro na hora para a próxima pessoa poder ler.
-*   **Por Trás:**
-    1.  O usuário digita uma busca. O sistema compara os termos contra os artigos existentes usando cálculo de score de relevância.
-    2.  **Detecção de Lacuna (Gap):** Se todos os artigos encontrados tiverem score de compatibilidade muito baixo, o sistema assume que aquela informação está faltando na empresa.
-    3.  A IA é acionada para **gerar um rascunho de artigo completo** baseado na pergunta feita, salvando-o em uma lista especial de rascunhos pendentes.
-    4.  Um administrador técnico pode clicar em `Aprovar` no painel, o que dispara `POST /api/ai/kb/drafts/{id}/approve`, inserindo o artigo permanentemente na base oficial.
+### B. Base de Conhecimento Semântica, Busca Vetorial e RAG (Retrieval-Augmented Generation)
+*   **Didático:** Você pesquisa na biblioteca. 
+    *   **Busca Semântica:** Em vez de procurar apenas palavras exatas, a biblioteca entende o conceito (ex: procurar "banco de dados lento" encontra artigos sobre "otimização de queries Postgres").
+    *   **Upload de Documentos (RAG):** É como você levar seu próprio manual de instruções para a biblioteca. O assistente de IA lê o seu manual na hora e responde as perguntas de forma específica com base no que está escrito ali.
+    *   **Análise de Lacunas (Gap Analysis):** Se você faz uma pergunta e a biblioteca não tem nenhuma resposta (nem nos livros dela, nem nos manuais enviados), a IA escreve um rascunho de solução na hora para que o administrador possa aprovar.
+*   **Por Trás (Fluxo Técnico):**
+    1.  **Indexação de Documentos:** O usuário faz upload de arquivos (`.txt`, `.md`, `.json`, `.csv`, `.log`) via interface. O backend recebe o arquivo, divide o texto em blocos (*chunks*) de tamanho controlado com sobreposição (evitando perda de contexto nas bordas) e envia esses blocos para a API do Gemini usando o modelo de embeddings oficial **`text-embedding-004`**.
+    2.  **Banco Vetorial SQLite:** Os embeddings (vetores de 768 dimensões gerados pelo Gemini) são serializados em JSON e salvos na tabela SQLite `kb_document_chunks`, vinculados ao documento original na tabela `kb_documents`.
+    3.  **Busca Semântica por Similaridade:** Ao pesquisar um termo ou enviar uma pergunta no chat com RAG ativo, o backend gera o embedding do termo de busca e realiza o cálculo de **similaridade de cosseno** em Python puro contra todos os blocos do banco:
+        $$\text{Similaridade de Cosseno} = \frac{A \cdot B}{\|A\| \|B\|}$$
+        Isso retorna os blocos de texto conceitualmente mais próximos da pergunta do usuário.
+    4.  **Aprovação de Rascunhos (Gap Analysis):** Caso o sistema realize uma busca por palavra-chave e não encontre nenhum resultado na base de dados original, ele gera autonomamente um rascunho de artigo que pode ser aprovado e promovido a artigo oficial via `POST /api/ai/kb/drafts/{id}/approve`.
 
 ### C. Execução do Agente Autônomo (Zero-Touch)
 *   **Didático:** É um robô de manutenção. Você clica em "Iniciar" e assiste ele trabalhar passo a passo na máquina quebrada.
@@ -170,28 +175,29 @@ Aqui está a inteligência integrada que automatiza o trabalho repetitivo:
 
 ---
 
-## 💬 5. Chat Gemini com Análise de Processos
+## 💬 5. Chat Gemini com Análise de Processos & RAG
 
 ### 💡 Para Leigos
-É um assistente pessoal que, além de ser muito inteligente, tem acesso a uma **cópia em tempo real de toda a sua empresa** (todas as métricas e todos os problemas do Kanban). Você pode pedir conselhos de gestão para ele.
+É um assistente pessoal especializado. Além de conhecer o estado da sua empresa em tempo real (métricas e chamados), ele consegue ler instantaneamente os manuais e relatórios técnicos que você enviou na Base de Conhecimento (RAG) para responder a perguntas específicas e complexas sobre a sua operação.
 
-### ⚙️ Por Trás dos Bastidores (O Prompt Dinâmico)
-Quando você digita uma mensagem no chat, o fluxo é o seguinte:
+### ⚙️ Por Trás dos Bastidores (O Prompt Dinâmico com RAG)
+Quando você envia uma mensagem no chat, o fluxo varia dependendo se a opção **Ativar RAG** está ligada:
 
 ```
-1. Usuário envia pergunta
+1. Usuário envia pergunta + Toggle RAG Ativo
    └─► 2. Backend FastAPI intercepta a requisição
-          ├─► Lê o estado atual das Métricas (DORA e ITSM)
-          ├─► Lê a lista completa de Chamados do Kanban
-          ├─► Junta tudo num "Super-Prompt" de Contexto
+          ├─► Calcula o embedding da pergunta
+          ├─► Recupera os 4 trechos de documentos (chunks) mais semelhantes no banco SQLite
+          ├─► Coleta o estado atual das Métricas (DORA e ITSM) e Chamados do Kanban
+          ├─► Injeta tudo em um "Super-Prompt" de Contexto Enriquecido
           └─► 3. Envia para a API Oficial do Gemini (Google)
                  └─► 4. Retorna a resposta contextualizada ao usuário
 ```
 
-1.  O frontend dispara `POST /api/ai/gemini-chat` enviando a mensagem, o modelo selecionado e a chave de API fornecida.
-2.  **Construção de Contexto:** O backend coleta todos os dados do banco de dados em memória e monta uma instrução contendo a tabela de métricas operacionais e a lista detalhada de chamados.
-3.  **Chamada Assíncrona via Urllib:** O backend faz uma requisição HTTP para a API de desenvolvimento do Google Gemini usando `urllib.request`. Como esta chamada é síncrona e pode demorar alguns segundos, o FastAPI a executa dentro de um executor de thread assíncrono (`asyncio.to_thread` / `loop.run_in_executor`) para que outros usuários possam continuar usando o aplicativo sem lentidão.
-4.  A resposta gerada pelo Gemini é filtrada, higienizada e exibida na janela de chat com formatação markdown.
+1.  **Opção RAG Habilitada (`use_rag = True`):** O backend realiza a busca vetorial descrita na seção anterior com base na pergunta digitada pelo usuário, recupera os trechos mais relevantes dos arquivos enviados e monta uma seção especial no prompt: `INFORMAÇÕES DE CONTEXTO DOS DOCUMENTOS DA BASE (RAG)`.
+2.  **Construção de Contexto Base:** Adiciona os valores das métricas operacionais e a lista detalhada de chamados Kanban (com colunas, tipos e responsáveis) para dar consciência situacional ao modelo.
+3.  **Chamada Assíncrona via Urllib:** A requisição HTTP POST é disparada para a API do Gemini utilizando o modelo selecionado (ex: `gemini-3.5-pro` ou `gemini-3.5-flash`). Toda a execução é delegada a um executor assíncrono para evitar o bloqueio do servidor.
+4.  **Histórico de Conversas SQLite:** Tanto a pergunta do usuário quanto a resposta gerada pela IA são salvas permanentemente no banco local via `db.insert_chat()`, permitindo o acesso ao histórico da conversa pelas abas correspondentes.
 
 ---
 
