@@ -11,6 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+import database as db
+
 app = FastAPI(
     title="MVP ITSM & Agentic AI Platform",
     description="Backend service for tracking Kanban flows, DORA metrics, and Agentic AI operations.",
@@ -70,9 +72,9 @@ class PolicyUpdateRequest(BaseModel):
     qa_approved: Optional[bool] = None
     docker_build_test: Optional[bool] = None
 
-# In-memory Store Initial Setup
-TICKETS_DB: Dict[str, Ticket] = {}
-DRAFT_KB_DB: List[Dict[str, Any]] = []
+
+# NOTE: TICKETS_DB e DRAFT_KB_DB foram removidos — dados agora persistem no SQLite via database.py
+
 
 KNOWLEDGE_BASE = [
     {
@@ -138,8 +140,11 @@ WIP_LIMITS = {
     "ready_for_deploy": None
 }
 
-# Insert Seed Data
+# Insert Seed Data (apenas se o banco estiver vazio)
 def init_seed_data():
+    if db.ticket_count() > 0:
+        return  # Banco já possui dados, não sobrescrever
+
     seed_tickets = [
         Ticket(
             id="104",
@@ -215,9 +220,16 @@ def init_seed_data():
         )
     ]
     for t in seed_tickets:
-        TICKETS_DB[t.id] = t
+        ticket_dict = t.model_dump()
+        # Converter policies de objeto para dict
+        if hasattr(ticket_dict.get("policies", None), "__dict__"):
+            ticket_dict["policies"] = ticket_dict["policies"].__dict__
+        db.insert_ticket(ticket_dict)
 
+# Inicializar banco de dados e seed
+db.init_db()
 init_seed_data()
+
 
 # Helper function to recalculate metrics with noise & events
 def get_current_metrics():
@@ -230,7 +242,7 @@ def get_current_metrics():
     noise_csat = random.uniform(-0.1, 0.1)
 
     # Check if there is an active Expedite ticket in To Do, Refinement, Development, or QA
-    active_expedites = sum(1 for t in TICKETS_DB.values() if t.class_of_service == "Expedite" and t.lane != "ready_for_deploy")
+    active_expedites = db.count_expedite_active()
     
     adjusted_metrics = METRICS.copy()
     if active_expedites > 0:
@@ -253,87 +265,89 @@ def get_current_metrics():
 
 # API REST Endpoints
 
-@app.get("/api/tickets", response_model=List[Ticket])
+@app.get("/api/tickets")
 def get_tickets():
-    return list(TICKETS_DB.values())
+    return db.get_all_tickets()
 
-@app.post("/api/tickets", response_model=Ticket)
+@app.post("/api/tickets")
 def create_ticket(ticket_in: TicketCreate):
     t_id = str(random.randint(111, 999))
-    while t_id in TICKETS_DB:
+    while db.get_ticket(t_id) is not None:
         t_id = str(random.randint(111, 999))
     
     # Simple Triage & Auto-Categorization when creating a ticket
     ai_summary = f"Auto-triaged: {ticket_in.title}. Primary category assigned based on context."
     
     # Initialize policies based on type
-    policies = TicketPolicy(
-        code_coverage=0 if ticket_in.type in ["Bug", "Feature"] else None,
-        doc_link="" if ticket_in.type in ["Bug", "Feature"] else None,
-        qa_approved=False,
-        docker_build_test=False
-    )
+    policies = {
+        "code_coverage": 0 if ticket_in.type in ["Bug", "Feature"] else None,
+        "doc_link": "" if ticket_in.type in ["Bug", "Feature"] else None,
+        "qa_approved": False,
+        "docker_build_test": False
+    }
 
-    ticket = Ticket(
-        id=t_id,
-        title=ticket_in.title,
-        description=ticket_in.description,
-        type=ticket_in.type,
-        class_of_service=ticket_in.class_of_service,
-        lane=ticket_in.lane or "to_do",
-        assignee=ticket_in.assignee,
-        created_at=time.time(),
-        updated_at=time.time(),
-        policies=policies,
-        ai_summary=ai_summary,
-        chat_logs=[f"System: 'Ticket opened by user. Assigned to {ticket_in.assignee}.'"],
-        error_logs=""
-    )
+    ticket_dict = {
+        "id": t_id,
+        "title": ticket_in.title,
+        "description": ticket_in.description,
+        "type": ticket_in.type,
+        "class_of_service": ticket_in.class_of_service,
+        "lane": ticket_in.lane or "to_do",
+        "assignee": ticket_in.assignee,
+        "created_at": time.time(),
+        "updated_at": time.time(),
+        "lead_time": None,
+        "wip_limit_exceeded": False,
+        "policies": policies,
+        "ai_summary": ai_summary,
+        "chat_logs": [f"System: 'Ticket opened by user. Assigned to {ticket_in.assignee}.'"],
+        "error_logs": ""
+    }
     
     # Adjust baseline metrics based on COS
-    if ticket.class_of_service == "Expedite":
+    if ticket_in.class_of_service == "Expedite":
         METRICS["change_failure_rate"] += 0.5
     
-    TICKETS_DB[t_id] = ticket
-    return ticket
+    db.insert_ticket(ticket_dict)
+    return ticket_dict
 
-@app.put("/api/tickets/{ticket_id}/policies", response_model=Ticket)
+@app.put("/api/tickets/{ticket_id}/policies")
 def update_ticket_policies(ticket_id: str, pol: PolicyUpdateRequest):
-    if ticket_id not in TICKETS_DB:
+    ticket = db.get_ticket(ticket_id)
+    if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
     
-    ticket = TICKETS_DB[ticket_id]
+    policies = ticket.get("policies", {})
     if pol.code_coverage is not None:
-        ticket.policies.code_coverage = pol.code_coverage
+        policies["code_coverage"] = pol.code_coverage
     if pol.doc_link is not None:
-        ticket.policies.doc_link = pol.doc_link
+        policies["doc_link"] = pol.doc_link
     if pol.qa_approved is not None:
-        ticket.policies.qa_approved = pol.qa_approved
+        policies["qa_approved"] = pol.qa_approved
     if pol.docker_build_test is not None:
-        ticket.policies.docker_build_test = pol.docker_build_test
+        policies["docker_build_test"] = pol.docker_build_test
         
-    ticket.updated_at = time.time()
-    TICKETS_DB[ticket_id] = ticket
-    return ticket
+    db.update_ticket(ticket_id, {"policies": policies, "updated_at": time.time()})
+    return db.get_ticket(ticket_id)
 
-@app.put("/api/tickets/{ticket_id}/move", response_model=Ticket)
+@app.put("/api/tickets/{ticket_id}/move")
 def move_ticket(ticket_id: str, target_lane: str):
-    if ticket_id not in TICKETS_DB:
+    ticket = db.get_ticket(ticket_id)
+    if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
     if target_lane not in WIP_LIMITS:
         raise HTTPException(status_code=400, detail="Invalid target lane")
     
-    ticket = TICKETS_DB[ticket_id]
-    source_lane = ticket.lane
+    source_lane = ticket["lane"]
     
     if source_lane == target_lane:
         return ticket
 
     # 1. Check WIP Limit (Expedite bypasses WIP limits entirely!)
     limit = WIP_LIMITS[target_lane]
-    if limit is not None and ticket.class_of_service != "Expedite":
+    if limit is not None and ticket["class_of_service"] != "Expedite":
         # Calculate current count in target lane
-        current_count = sum(1 for t in TICKETS_DB.values() if t.lane == target_lane)
+        current_count = db.count_tickets_in_lane(target_lane)
         if current_count >= limit:
             raise HTTPException(
                 status_code=400,
@@ -341,12 +355,13 @@ def move_ticket(ticket_id: str, target_lane: str):
             )
 
     # 2. Check Explicit Exit Criteria / Process Policies
+    policies = ticket.get("policies", {})
     # Moving from Development to QA/Testing
     if source_lane == "development" and target_lane == "qa_testing":
         # Bug or Feature requires documentation link and code coverage >= 80%
-        if ticket.type in ["Bug", "Feature"] and ticket.class_of_service != "Expedite":
-            coverage = ticket.policies.code_coverage or 0
-            doc = ticket.policies.doc_link or ""
+        if ticket["type"] in ["Bug", "Feature"] and ticket["class_of_service"] != "Expedite":
+            coverage = policies.get("code_coverage") or 0
+            doc = policies.get("doc_link") or ""
             if coverage < 80:
                 raise HTTPException(
                     status_code=400,
@@ -360,43 +375,45 @@ def move_ticket(ticket_id: str, target_lane: str):
 
     # Moving to Ready for Deploy (from QA/Testing)
     if source_lane == "qa_testing" and target_lane == "ready_for_deploy":
-        if ticket.class_of_service != "Expedite":
-            if not ticket.policies.qa_approved:
+        if ticket["class_of_service"] != "Expedite":
+            if not policies.get("qa_approved"):
                 raise HTTPException(
                     status_code=400,
                     detail="Critério de Saída Violado: Aprovação de QA é obrigatória antes de implantar."
                 )
-            if not ticket.policies.docker_build_test:
+            if not policies.get("docker_build_test"):
                 raise HTTPException(
                     status_code=400,
                     detail="Critério de Saída Violado: O teste de verificação e build do Docker deve passar antes de implantar."
                 )
 
     # If we made it here, apply the move
-    ticket.lane = target_lane
-    ticket.updated_at = time.time()
+    updated_at = time.time()
+    update_fields = {"lane": target_lane, "updated_at": updated_at}
     
     # If ticket was moved to Ready for Deploy, calculate lead time and adjust metrics
     if target_lane == "ready_for_deploy":
-        ticket.lead_time = (ticket.updated_at - ticket.created_at) / 60.0  # in minutes
+        lead_time = (updated_at - ticket["created_at"]) / 60.0  # in minutes
+        update_fields["lead_time"] = lead_time
         
         # Adjust DORA metrics positively
         METRICS["deployment_frequency"] += 0.2
         # Average the lead time into LTFC
-        METRICS["lead_time_for_changes"] = (METRICS["lead_time_for_changes"] * 9 + ticket.lead_time) / 10
-        if ticket.class_of_service == "Expedite":
+        METRICS["lead_time_for_changes"] = (METRICS["lead_time_for_changes"] * 9 + lead_time) / 10
+        if ticket["class_of_service"] == "Expedite":
             # Resolving P1 restores service
             METRICS["mean_time_to_restore"] = (METRICS["mean_time_to_restore"] * 4 + 10.0) / 5
             METRICS["customer_satisfaction"] = min(100.0, METRICS["customer_satisfaction"] + 1.2)
             
-    TICKETS_DB[ticket_id] = ticket
-    return ticket
+    db.update_ticket(ticket_id, update_fields)
+    return db.get_ticket(ticket_id)
 
 @app.delete("/api/tickets/{ticket_id}")
 def delete_ticket(ticket_id: str):
-    if ticket_id not in TICKETS_DB:
+    ticket = db.get_ticket(ticket_id)
+    if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    del TICKETS_DB[ticket_id]
+    db.delete_ticket(ticket_id)
     return {"status": "success", "message": f"Ticket {ticket_id} deleted."}
 
 # DORA and KPI Metrics
@@ -458,24 +475,23 @@ def ai_triage(req: TriageRequest):
 
 @app.post("/api/ai/summarize/{ticket_id}")
 def ai_summarize(ticket_id: str):
-    if ticket_id not in TICKETS_DB:
+    t = db.get_ticket(ticket_id)
+    if t is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    
-    t = TICKETS_DB[ticket_id]
     
     # 3-bullet summary based on ticket content
     bullets = [
-        f"**Ação Primária Necessária**: {t.title}.",
-        f"**Contexto Atual**: Chamado atribuído a {t.assignee} na coluna '{t.lane.replace('_', ' ').title()}'.",
-        f"**Logs / Causa Raiz**: {t.description[:80]}..."
+        f"**Ação Primária Necessária**: {t['title']}.",
+        f"**Contexto Atual**: Chamado atribuído a {t['assignee']} na coluna '{t['lane'].replace('_', ' ').title()}'.",
+        f"**Logs / Causa Raiz**: {t['description'][:80]}..."
     ]
     
-    if t.error_logs:
-        bullets[2] = f"**Detalhes de Falha do Sistema**: Erro crítico detectado: `{t.error_logs}`"
+    if t.get("error_logs"):
+        bullets[2] = f"**Detalhes de Falha do Sistema**: Erro crítico detectado: `{t['error_logs']}`"
     
-    t.ai_summary = "\n".join(bullets)
-    TICKETS_DB[ticket_id] = t
-    return {"summary": t.ai_summary}
+    ai_summary = "\n".join(bullets)
+    db.update_ticket(ticket_id, {"ai_summary": ai_summary})
+    return {"summary": ai_summary}
 
 class GeminiChatRequest(BaseModel):
     message: str
@@ -502,8 +518,9 @@ MÉTRICAS ATUAIS:
 
 CHAMADOS NO QUADRO KANBAN:
 """
-    for t in TICKETS_DB.values():
-        system_context += f"- [#{t.id}] {t.title} (Coluna: {t.lane}, Tipo: {t.type}, Classe de Serviço: {t.class_of_service}, Atribuído a: {t.assignee})\n  Descrição: {t.description}\n"
+    all_tickets = db.get_all_tickets()
+    for t in all_tickets:
+        system_context += f"- [#{t['id']}] {t['title']} (Coluna: {t['lane']}, Tipo: {t['type']}, Classe de Serviço: {t['class_of_service']}, Atribuído a: {t['assignee']})\n  Descrição: {t['description']}\n"
         
     # Parse model identifier into base model name + thinking budget
     # Format: "gemini-{version}-{variant}-{thinking_level}" or "gemini-{version}-{variant}"
@@ -576,9 +593,13 @@ CHAMADOS NO QUADRO KANBAN:
         candidates = res_json.get("candidates", [])
         if candidates:
             text = candidates[0]["content"]["parts"][0]["text"]
+            # Salvar conversa no histórico SQLite
+            db.insert_chat(req.message, text, req.model)
             return {"reply": text}
         else:
-            return {"reply": "Nenhum conteúdo retornado pelo modelo Gemini."}
+            reply = "Nenhum conteúdo retornado pelo modelo Gemini."
+            db.insert_chat(req.message, reply, req.model)
+            return {"reply": reply}
             
     except urllib.error.HTTPError as e:
         error_detail = e.read().decode("utf-8")
@@ -590,6 +611,16 @@ CHAMADOS NO QUADRO KANBAN:
         return {"reply": f"Erro da API do Gemini (HTTP {e.code}): {msg}"}
     except Exception as e:
         return {"reply": f"Erro de comunicação com a API: {str(e)}"}
+
+# Chat History Endpoints
+@app.get("/api/ai/chat-history")
+def get_chat_history():
+    return db.get_all_chats()
+
+@app.delete("/api/ai/chat-history")
+def clear_chat_history():
+    db.clear_chats()
+    return {"status": "success", "message": "Histórico de conversas limpo."}
 
 # Knowledge Base Semantic Vector Search & Gap Analysis
 @app.post("/api/ai/kb/search")
@@ -669,7 +700,7 @@ Uma busca por `{query}` retornou zero resultados na Base de Conhecimento do MVP.
             "content": content,
             "created_at": time.time()
         }
-        DRAFT_KB_DB.append(draft_article)
+        db.insert_draft(draft_article)
         
         # Slightly reduce self service metrics temporarily because user had a miss
         METRICS["self_service_adoption"] = max(10.0, METRICS["self_service_adoption"] - 0.5)
@@ -682,12 +713,11 @@ Uma busca por `{query}` retornou zero resultados na Base de Conhecimento do MVP.
 
 @app.get("/api/ai/kb/drafts")
 def get_kb_drafts():
-    return DRAFT_KB_DB
+    return db.get_all_drafts()
 
 @app.post("/api/ai/kb/drafts/{draft_id}/approve")
 def approve_kb_draft(draft_id: str):
-    global DRAFT_KB_DB
-    draft = next((d for d in DRAFT_KB_DB if d["id"] == draft_id), None)
+    draft = db.get_draft(draft_id)
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
         
@@ -708,7 +738,7 @@ def approve_kb_draft(draft_id: str):
     })
     
     # Remove from draft
-    DRAFT_KB_DB = [d for d in DRAFT_KB_DB if d["id"] != draft_id]
+    db.delete_draft(draft_id)
     
     # Bump metrics
     METRICS["self_service_adoption"] = min(100.0, METRICS["self_service_adoption"] + 2.5)
@@ -719,15 +749,17 @@ def approve_kb_draft(draft_id: str):
 # Real-time Autonomous Agent SSE Stream Simulator
 @app.get("/api/tickets/{ticket_id}/agent/stream")
 def stream_agent_run(ticket_id: str):
-    if ticket_id not in TICKETS_DB:
+    ticket = db.get_ticket(ticket_id)
+    if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
-        
-    ticket = TICKETS_DB[ticket_id]
+    
+    ticket_title = ticket["title"]
+    ticket_created_at = ticket["created_at"]
     
     async def log_generator():
         # Setup specific tool scripts depending on ticket type
-        is_db_reset = "db" in ticket.title.lower() or "database" in ticket.title.lower()
-        is_s3 = "s3" in ticket.title.lower() or "bucket" in ticket.title.lower()
+        is_db_reset = "db" in ticket_title.lower() or "database" in ticket_title.lower()
+        is_s3 = "s3" in ticket_title.lower() or "bucket" in ticket_title.lower()
         
         steps = []
         if is_db_reset:
@@ -769,12 +801,14 @@ def stream_agent_run(ticket_id: str):
             await asyncio.sleep(1.0)
             
         # At the end of the stream, automatically update ticket status to ready_for_deploy and adjust metrics
-        ticket.lane = "ready_for_deploy"
-        ticket.policies.qa_approved = True
-        ticket.policies.docker_build_test = True
-        ticket.updated_at = time.time()
-        ticket.lead_time = (ticket.updated_at - ticket.created_at) / 60.0
-        TICKETS_DB[ticket_id] = ticket
+        updated_at = time.time()
+        lead_time = (updated_at - ticket_created_at) / 60.0
+        db.update_ticket(ticket_id, {
+            "lane": "ready_for_deploy",
+            "updated_at": updated_at,
+            "lead_time": lead_time,
+            "policies": {"qa_approved": True, "docker_build_test": True, "code_coverage": 100, "doc_link": "http://kb/auto-agent"}
+        })
         
         # Positively affect KPIs
         METRICS["self_service_adoption"] = min(100.0, METRICS["self_service_adoption"] + 1.5)

@@ -20,13 +20,13 @@ Pense na plataforma como um restaurante moderno:
 │     FRONTEND (Next.js :3000)    │               │     BACKEND (FastAPI :8000)     │
 │  Interface do Usuário (React)   │               │   Servidor de Dados e Lógica    │
 ├─────────────────────────────────┤               ├─────────────────────────────────┤
-│  • Renderiza o visual           │               │  • Armazena chamados em memória │
+│  • Renderiza o visual           │               │  • Persiste chamados em SQLite  │
 │  • Gerencia temas (Dark/Light)  │  ───Proxy───► │  • Calcula métricas em tempo real│
 │  • Dispara chamadas de API      │               │  • Integra com a API do Gemini  │
 └─────────────────────────────────┘               └─────────────────────────────────┘
 ```
 *   **Proxy Reverso (`next.config.ts`):** O Next.js é configurado para redirecionar qualquer chamada que comece com `/api/*` diretamente para o servidor FastAPI (`http://127.0.0.1:8000/api/*`). Isso evita erros de CORS (compartilhamento de recursos entre portas diferentes) e centraliza as chamadas.
-*   **Banco de Dados em Memória (`TICKETS_DB`):** Para manter o sistema rápido e fácil de rodar, o backend usa dicionários Python em memória para salvar os chamados técnicos, reiniciando o estado padrão toda vez que o servidor FastAPI é reiniciado.
+*   **Banco de Dados SQLite (`stone.db`):** O backend utiliza um banco de dados SQLite para persistir os chamados do Kanban, o histórico de conversas com a IA e os rascunhos da base de conhecimento. Os dados são mantidos entre reinícios do servidor. Na primeira execução, dados de exemplo (seed) são inseridos automaticamente.
 
 ---
 
@@ -275,5 +275,6 @@ Pronto! A plataforma Stone (FinOps & ITSM) estará totalmente funcional com o pa
 ### ⚠️ Observações Importantes
 *   **Ambos os servidores precisam estar rodando simultaneamente** (backend na porta 8000 e frontend na porta 3000).
 *   O frontend faz proxy automático das chamadas `/api/*` para o backend — não é necessário configurar nada manualmente.
-*   O banco de dados é **em memória**: ao reiniciar o backend, os dados voltam ao estado padrão.
+*   O banco de dados SQLite (`stone.db`) é criado automaticamente na raiz do projeto. Os dados de **tickets, conversas com IA e rascunhos da KB** são persistidos entre reinícios do servidor.
+*   Para resetar o banco ao estado inicial, basta apagar o arquivo `stone.db` e reiniciar o backend.
 *   Para utilizar o **Chat Gemini** e as funcionalidades de **IA**, é necessário fornecer uma chave de API do Google Gemini diretamente na interface.
