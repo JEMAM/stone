@@ -204,3 +204,76 @@ Quando você digita uma mensagem no chat, o fluxo é o seguinte:
 *   **Tailwind CSS v4 & Variáveis CSS:** No arquivo [globals.css](file:///c:/Users/edumo/stone_project/frontend/src/app/globals.css), definimos tokens semânticos baseados em variáveis nativas do navegador.
 *   **O Alternador:** O botão de tema adiciona ou remove a classe `.light` da tag raiz `<html>` do documento.
 *   Como todas as cores dos componentes usam as variáveis correspondentes (como `bg-surface-dark` apontando para `var(--bg-primary)`), o navegador redesenha toda a paleta de cores instantaneamente com transições suaves de hardware, sem precisar recarregar o Next.js.
+
+---
+
+## 🖥️ 7. Como Iniciar o Aplicativo
+
+Siga os passos abaixo para rodar a plataforma localmente na sua máquina.
+
+### Pré-requisitos
+*   **Python 3.10+** instalado
+*   **Node.js 18+** e **npm** instalados
+*   **Git** (para clonar o repositório, se necessário)
+
+---
+
+### Passo 1: Iniciar o Backend (FastAPI)
+
+Abra um terminal na raiz do projeto (`stone_project/`) e execute:
+
+```bash
+# 1. Criar o ambiente virtual (apenas na primeira vez)
+python -m venv venv
+
+# 2. Ativar o ambiente virtual
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# Windows (CMD):
+.\venv\Scripts\activate.bat
+# Linux/macOS:
+source venv/bin/activate
+
+# 3. Instalar as dependências do backend (apenas na primeira vez ou após mudanças)
+pip install -r requirements.txt
+
+# 4. Iniciar o servidor FastAPI
+uvicorn main:app --reload --port 8000
+```
+
+> ✅ O backend estará rodando em: **http://127.0.0.1:8000**
+
+---
+
+### Passo 2: Iniciar o Frontend (Next.js)
+
+Abra um **segundo terminal** (mantenha o backend rodando no primeiro) e execute:
+
+```bash
+# 1. Entrar na pasta do frontend
+cd frontend
+
+# 2. Instalar as dependências do Node.js (apenas na primeira vez ou após mudanças)
+npm install
+
+# 3. Iniciar o servidor de desenvolvimento do Next.js
+npm run dev
+```
+
+> ✅ O frontend estará rodando em: **http://localhost:3000**
+
+---
+
+### Passo 3: Acessar a Plataforma
+
+Abra o navegador e acesse:
+
+🔗 **http://localhost:3000**
+
+Pronto! A plataforma Stone (FinOps & ITSM) estará totalmente funcional com o painel de métricas, Kanban, Chat Gemini e todas as funcionalidades de IA.
+
+### ⚠️ Observações Importantes
+*   **Ambos os servidores precisam estar rodando simultaneamente** (backend na porta 8000 e frontend na porta 3000).
+*   O frontend faz proxy automático das chamadas `/api/*` para o backend — não é necessário configurar nada manualmente.
+*   O banco de dados é **em memória**: ao reiniciar o backend, os dados voltam ao estado padrão.
+*   Para utilizar o **Chat Gemini** e as funcionalidades de **IA**, é necessário fornecer uma chave de API do Google Gemini diretamente na interface.
