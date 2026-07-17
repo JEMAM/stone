@@ -4,11 +4,13 @@ import random
 import time
 import urllib.request
 import urllib.error
+import math
+import uuid
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse, Response
 from pydantic import BaseModel, Field
 
 import database as db
@@ -74,6 +76,92 @@ class PolicyUpdateRequest(BaseModel):
 
 
 # NOTE: TICKETS_DB e DRAFT_KB_DB foram removidos — dados agora persistem no SQLite via database.py
+
+
+# ─────────────────────────────────────────────
+# RAG & Embedding Utility Functions
+# ─────────────────────────────────────────────
+
+def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[str]:
+    """Divide o texto em blocos menores com sobreposição."""
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start += chunk_size - overlap
+    return chunks
+
+
+def dot_product(v1: List[float], v2: List[float]) -> float:
+    return sum(x * y for x, y in zip(v1, v2))
+
+
+def magnitude(v: List[float]) -> float:
+    return math.sqrt(sum(x * x for x in v))
+
+
+def cosine_similarity(v1: List[float], v2: List[float]) -> float:
+    mag1 = magnitude(v1)
+    mag2 = magnitude(v2)
+    if not mag1 or not mag2:
+        return 0.0
+    return dot_product(v1, v2) / (mag1 * mag2)
+
+
+async def get_embeddings(texts: List[str], api_key: str) -> List[List[float]]:
+    """Obtém embeddings da API do Gemini em lote utilizando text-embedding-004."""
+    if not api_key or not api_key.strip():
+        raise HTTPException(status_code=400, detail="Gemini API Key não fornecida para cálculo de embeddings.")
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents?key={api_key}"
+    
+    payload = {
+        "requests": [
+            {
+                "model": "models/text-embedding-004",
+                "content": {
+                    "parts": [{"text": t}]
+                }
+            } for t in texts
+        ]
+    }
+    
+    try:
+        req_data = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        url_req = urllib.request.Request(url, data=req_data, headers=headers, method="POST")
+        
+        def run_request():
+            with urllib.request.urlopen(url_req, timeout=30) as response:
+                return response.read().decode("utf-8")
+                
+        loop = asyncio.get_event_loop()
+        res_body = await loop.run_in_executor(None, run_request)
+        res_json = json.loads(res_body)
+        
+        embeddings = []
+        for emb_obj in res_json.get("embeddings", []):
+            embeddings.append(emb_obj.get("values", []))
+        return embeddings
+    except urllib.error.HTTPError as e:
+        error_detail = e.read().decode("utf-8")
+        try:
+            err_json = json.loads(error_detail)
+            msg = err_json.get("error", {}).get("message", error_detail)
+        except Exception:
+            msg = error_detail
+        raise HTTPException(status_code=e.code, detail=f"Erro da API do Gemini (Embeddings): {msg}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro de comunicação com a API (Embeddings): {str(e)}")
+
+
+async def get_embedding(text: str, api_key: str) -> List[float]:
+    """Obtém o embedding de um único texto."""
+    embs = await get_embeddings([text], api_key)
+    if embs:
+        return embs[0]
+    raise HTTPException(status_code=500, detail="Nenhum embedding retornado pela API do Gemini.")
 
 
 KNOWLEDGE_BASE = [
@@ -497,12 +585,44 @@ class GeminiChatRequest(BaseModel):
     message: str
     api_key: str
     model: str
+    use_rag: Optional[bool] = False
 
 @app.post("/api/ai/gemini-chat")
 async def gemini_chat(req: GeminiChatRequest):
     if not req.api_key.strip():
         raise HTTPException(status_code=400, detail="Gemini API Key não fornecida.")
         
+    # 1. Se RAG estiver habilitado, buscar contexto relevante dos documentos
+    rag_context = ""
+    if req.use_rag:
+        chunks = db.get_all_document_chunks()
+        if chunks:
+            try:
+                # Obter embedding da pergunta
+                query_emb = await get_embedding(req.message, req.api_key)
+                
+                # Calcular similaridade
+                matches = []
+                for chunk in chunks:
+                    chunk_emb = json.loads(chunk["embedding_json"])
+                    sim = cosine_similarity(query_emb, chunk_emb)
+                    if sim >= 0.2:
+                        matches.append((chunk, sim))
+                        
+                matches = sorted(matches, key=lambda x: x[1], reverse=True)
+                
+                if matches:
+                    context_parts = []
+                    for chunk, sim in matches[:4]:
+                        doc = db.get_document(chunk["document_id"])
+                        fname = doc["filename"] if doc else "Documento"
+                        context_parts.append(f"Arquivo: {fname} (Trecho {chunk['chunk_index'] + 1}):\n{chunk['content']}")
+                    
+                    rag_context = "\n\n".join(context_parts)
+            except Exception as e:
+                # Logar o erro e continuar sem RAG
+                print(f"Erro ao buscar contexto RAG: {str(e)}")
+
     # Build context from current operational status
     system_context = f"""Você é o Engenheiro Especialista em Processos do MVP, analisando o ecossistema ITSM e DevOps da Stone.
 
@@ -546,6 +666,18 @@ CHAMADOS NO QUADRO KANBAN:
     # Call Gemini API
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{actual_model}:generateContent?key={req.api_key}"
     
+    message_content = req.message
+    if rag_context:
+        message_content = f"""INFORMAÇÕES DE CONTEXTO DOS DOCUMENTOS DA BASE (RAG):
+{rag_context}
+
+---
+
+PERGUNTA DO USUÁRIO:
+{req.message}
+
+Responda com base no contexto dos documentos fornecidos acima (RAG) de forma específica e focada."""
+
     payload = {
         "systemInstruction": {
             "parts": [{"text": system_context}]
@@ -553,7 +685,7 @@ CHAMADOS NO QUADRO KANBAN:
         "contents": [
             {
                 "parts": [
-                    {"text": f"{req.message}\nResponda em português de forma concisa e profissional, propondo soluções pragmáticas para os problemas de fluxo e SLA apresentados."}
+                    {"text": f"{message_content}\nResponda em português de forma concisa e profissional, propondo soluções pragmáticas para os problemas de fluxo e SLA apresentados."}
                 ]
             }
         ],
@@ -624,31 +756,76 @@ def clear_chat_history():
 
 # Knowledge Base Semantic Vector Search & Gap Analysis
 @app.post("/api/ai/kb/search")
-def kb_search(query_in: SearchQuery):
-    query = query_in.query.lower().strip()
+async def kb_search(
+    query_in: SearchQuery,
+    x_gemini_api_key: Optional[str] = Header(None)
+):
+    query = query_in.query.strip()
     
     results = []
     
-    # Perform mock semantic searches using keyword matches
+    # 1. Se API Key foi fornecida e temos documentos cadastrados, fazer busca semântica
+    if x_gemini_api_key and x_gemini_api_key.strip():
+        chunks = db.get_all_document_chunks()
+        if chunks:
+            try:
+                # Obter embedding da busca
+                query_emb = await get_embedding(query, x_gemini_api_key.strip())
+                
+                # Calcular similaridade de cosseno
+                matches = []
+                for chunk in chunks:
+                    chunk_emb = json.loads(chunk["embedding_json"])
+                    sim = cosine_similarity(query_emb, chunk_emb)
+                    if sim >= 0.2:
+                        matches.append((chunk, sim))
+                        
+                matches = sorted(matches, key=lambda x: x[1], reverse=True)
+                
+                # Agrupar por documento para resposta legível no Kanban/AIOps
+                doc_groups = {}
+                for chunk, sim in matches[:5]:
+                    doc_id = chunk["document_id"]
+                    if doc_id not in doc_groups:
+                        doc = db.get_document(doc_id)
+                        doc_groups[doc_id] = {
+                            "id": doc_id,
+                            "title": doc["filename"] if doc else "Documento",
+                            "sections": []
+                        }
+                    doc_groups[doc_id]["sections"].append({
+                        "subtitle": f"Bloco {chunk['chunk_index'] + 1}",
+                        "content": chunk["content"],
+                        "score": round(sim, 3)
+                    })
+                    
+                results = list(doc_groups.values())
+                if results:
+                    return {
+                        "results": results,
+                        "gap_detected": False,
+                        "draft_created": False
+                    }
+            except Exception as e:
+                print(f"Erro na busca semântica RAG: {str(e)}")
+
+    # 2. Fallback: Busca mock padrão baseada em palavras-chave
+    query_lower = query.lower()
     for article in KNOWLEDGE_BASE:
         matched_sections = []
         for sect in article["sections"]:
-            # check if query words intersect with content
-            words = query.replace("?", "").replace(",", "").split()
+            words = query_lower.replace("?", "").replace(",", "").split()
             match_score = 0
             for w in words:
                 if len(w) > 3 and (w in sect["content"].lower() or w in sect["subtitle"].lower() or w in article["title"].lower()):
                     match_score += 1
             
             if match_score > 0:
-                # Highlight query words in the snippet
                 snippet = sect["content"]
                 for w in words:
                     if len(w) > 3:
-                        # Case insensitive highlight
                         idx = snippet.lower().find(w)
                         if idx != -1:
-                            # Simple replacement (first occurrence)
                             original_term = snippet[idx:idx+len(w)]
                             snippet = snippet.replace(original_term, f"<mark>{original_term}</mark>")
                 
@@ -665,11 +842,10 @@ def kb_search(query_in: SearchQuery):
                 "sections": matched_sections
             })
             
-    # Sort by score descending
     for r in results:
         r["sections"] = sorted(r["sections"], key=lambda x: x["score"], reverse=True)
         
-    # Gap Analysis: If 0 results, generate a draft KB article automatically!
+    # Análise de Lacuna (Gap Analysis)
     if not results:
         draft_id = f"draft_{random.randint(100, 999)}"
         title_words = [w.capitalize() for w in query.split()[:5]]
@@ -692,7 +868,6 @@ Uma busca por `{query}` retornou zero resultados na Base de Conhecimento do MVP.
 2. Valide os mapeamentos de portas e certifique-se de que políticas de firewall não bloqueiam os canais.
 3. Associe drivers de ponte de rede Docker explicitamente.
 """
-        # Save to draft DB
         draft_article = {
             "id": draft_id,
             "title": title,
@@ -701,8 +876,6 @@ Uma busca por `{query}` retornou zero resultados na Base de Conhecimento do MVP.
             "created_at": time.time()
         }
         db.insert_draft(draft_article)
-        
-        # Slightly reduce self service metrics temporarily because user had a miss
         METRICS["self_service_adoption"] = max(10.0, METRICS["self_service_adoption"] - 0.5)
 
     return {
@@ -819,6 +992,84 @@ def stream_agent_run(ticket_id: str):
         yield f"data: {json.dumps({'message': '✅ Execução do Agente concluída. Chamado encerrado.', 'progress': 100, 'done': True})}\n\n"
         
     return StreamingResponse(log_generator(), media_type="text/event-stream")
+
+# ─────────────────────────────────────────────
+# KB DOCUMENTS & RAG ENDPOINTS
+# ─────────────────────────────────────────────
+
+@app.post("/api/ai/kb/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    x_gemini_api_key: Optional[str] = Header(None),
+    api_key: Optional[str] = None
+):
+    key = x_gemini_api_key or api_key
+    if not key or not key.strip():
+        raise HTTPException(status_code=400, detail="Gemini API Key não fornecida no cabeçalho X-Gemini-API-Key.")
+    
+    try:
+        content_bytes = await file.read()
+        content = content_bytes.decode("utf-8", errors="ignore")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao ler arquivo: {str(e)}")
+    
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="O arquivo enviado está vazio.")
+        
+    doc_id = str(uuid.uuid4())
+    filename = file.filename
+    
+    # Dividir texto em chunks
+    chunks_text = chunk_text(content)
+    if not chunks_text:
+        raise HTTPException(status_code=400, detail="Não foi possível criar blocos de texto a partir do arquivo.")
+    
+    # Calcular embeddings
+    embeddings = await get_embeddings(chunks_text, key)
+    
+    # Salvar documento e chunks no banco de dados SQLite
+    db.insert_document(doc_id, filename, content)
+    
+    chunks_to_insert = []
+    for i, (chunk, emb) in enumerate(zip(chunks_text, embeddings)):
+        chunks_to_insert.append({
+            "id": f"{doc_id}_{i}",
+            "document_id": doc_id,
+            "chunk_index": i,
+            "content": chunk,
+            "embedding_json": json.dumps(emb)
+        })
+    db.insert_document_chunks(chunks_to_insert)
+    
+    return {"status": "success", "message": f"Documento '{filename}' processado e indexado em {len(chunks_text)} blocos.", "document_id": doc_id}
+
+
+@app.get("/api/ai/kb/documents")
+def list_documents():
+    return db.get_all_documents()
+
+
+@app.get("/api/ai/kb/documents/{doc_id}/download")
+def download_document(doc_id: str):
+    doc = db.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+    
+    headers = {
+        "Content-Disposition": f'attachment; filename="{doc["filename"]}"',
+        "Content-Type": "text/plain; charset=utf-8"
+    }
+    return Response(content=doc["content"], headers=headers, media_type="text/plain")
+
+
+@app.delete("/api/ai/kb/documents/{doc_id}")
+def delete_document(doc_id: str):
+    doc = db.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+    db.delete_document(doc_id)
+    return {"status": "success", "message": f"Documento '{doc['filename']}' e seus blocos vetoriais foram excluídos."}
+
 
 # Root Redirect to static files
 @app.get("/")

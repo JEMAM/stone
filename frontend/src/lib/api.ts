@@ -39,19 +39,48 @@ export const aiTriage = (text: string) =>
 export const aiSummarize = (ticketId: string) =>
   fetcher<{ summary: string }>(`/api/ai/summarize/${ticketId}`, { method: "POST" });
 
-export const kbSearch = (query: string) =>
-  fetcher<KBSearchResult>("/api/ai/kb/search", { method: "POST", body: JSON.stringify({ query }) });
+export const kbSearch = (query: string, apiKey?: string) =>
+  fetcher<KBSearchResult>("/api/ai/kb/search", {
+    method: "POST",
+    headers: apiKey ? { "X-Gemini-API-Key": apiKey } : {},
+    body: JSON.stringify({ query }),
+  });
 
 export const getKBDrafts = () => fetcher<KBDraft[]>("/api/ai/kb/drafts");
 
 export const approveKBDraft = (draftId: string) =>
   fetcher<{ status: string }>(`/api/ai/kb/drafts/${draftId}/approve`, { method: "POST" });
 
-export const geminiChat = (message: string, apiKey: string, model: string) =>
+export const geminiChat = (message: string, apiKey: string, model: string, useRag: boolean = false) =>
   fetcher<{ reply: string }>("/api/ai/gemini-chat", {
     method: "POST",
-    body: JSON.stringify({ message, api_key: apiKey, model }),
+    body: JSON.stringify({ message, api_key: apiKey, model, use_rag: useRag }),
   });
+
+export const getKBDocuments = () =>
+  fetcher<{ id: string; filename: string; content: string; created_at: number }[]>("/api/ai/kb/documents");
+
+export const deleteKBDocument = (docId: string) =>
+  fetcher<{ status: string }>(`/api/ai/kb/documents/${docId}`, { method: "DELETE" });
+
+export async function uploadKBDocument(file: File, apiKey: string): Promise<{ status: string; message: string; document_id: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  const res = await fetch("/api/ai/kb/documents/upload", {
+    method: "POST",
+    headers: {
+      "X-Gemini-API-Key": apiKey,
+    },
+    body: formData,
+  });
+  
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
 
 // Agent Stream
 export function streamAgent(ticketId: string, onMessage: (data: { message: string; progress: number; done?: boolean }) => void) {

@@ -69,6 +69,22 @@ def init_db():
                 content TEXT NOT NULL,
                 created_at REAL NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS kb_documents (
+                id TEXT PRIMARY KEY,
+                filename TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at REAL NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS kb_document_chunks (
+                id TEXT PRIMARY KEY,
+                document_id TEXT NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                embedding_json TEXT NOT NULL,
+                FOREIGN KEY (document_id) REFERENCES kb_documents(id) ON DELETE CASCADE
+            );
         """)
         conn.commit()
     finally:
@@ -304,3 +320,79 @@ def delete_draft(draft_id: str):
         conn.commit()
     finally:
         conn.close()
+
+
+# ─────────────────────────────────────────────
+# KB DOCUMENTS & CHUNKS (RAG) — CRUD
+# ─────────────────────────────────────────────
+
+def insert_document(doc_id: str, filename: str, content: str):
+    """Insere um novo documento RAG."""
+    conn = _get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO kb_documents (id, filename, content, created_at) VALUES (?, ?, ?, ?)",
+            (doc_id, filename, content, time.time()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def insert_document_chunks(chunks: List[Dict[str, Any]]):
+    """Insere múltiplos blocos (chunks) de documentos com seus embeddings."""
+    conn = _get_conn()
+    try:
+        conn.executemany(
+            "INSERT INTO kb_document_chunks (id, document_id, chunk_index, content, embedding_json) VALUES (?, ?, ?, ?, ?)",
+            [
+                (c["id"], c["document_id"], c["chunk_index"], c["content"], c["embedding_json"])
+                for c in chunks
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_all_documents() -> List[Dict[str, Any]]:
+    """Retorna todos os documentos RAG cadastrados."""
+    conn = _get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM kb_documents ORDER BY created_at DESC").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_document(doc_id: str) -> Optional[Dict[str, Any]]:
+    """Retorna um documento RAG pelo ID."""
+    conn = _get_conn()
+    try:
+        row = conn.execute("SELECT * FROM kb_documents WHERE id = ?", (doc_id,)).fetchone()
+        if row is None:
+            return None
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def delete_document(doc_id: str):
+    """Remove um documento RAG e seus chunks correspondentes (cascading)."""
+    conn = _get_conn()
+    try:
+        conn.execute("DELETE FROM kb_documents WHERE id = ?", (doc_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_all_document_chunks() -> List[Dict[str, Any]]:
+    """Retorna todos os chunks de documentos com seus embeddings."""
+    conn = _get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM kb_document_chunks").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+

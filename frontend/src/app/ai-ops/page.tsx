@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { kbSearch, getKBDrafts, approveKBDraft, geminiChat } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { kbSearch, getKBDrafts, approveKBDraft, geminiChat, getKBDocuments, deleteKBDocument, uploadKBDocument } from "@/lib/api";
 import type { KBSearchResult, KBDraft } from "@/lib/types";
 import { GEMINI_MODELS } from "@/lib/types";
 
@@ -15,12 +15,67 @@ export default function AiOpsPage() {
   const [kbResults, setKbResults] = useState<KBSearchResult | null>(null);
   const [drafts, setDrafts] = useState<KBDraft[]>([]);
 
+  // RAG Documents
+  const [documents, setDocuments] = useState<{ id: string; filename: string; created_at: number }[]>([]);
+  const [uploading, setUploading] = useState(false);
+
   // Gemini Chat
   const [apiKey, setApiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState<string>(GEMINI_MODELS[0].id);
   const [chatMessages, setChatMessages] = useState<{ role: string; text: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [useRag, setUseRag] = useState(false);
+
+  const loadDocuments = async () => {
+    try {
+      const docs = await getKBDocuments();
+      setDocuments(docs);
+    } catch (e) {
+      console.error("Erro ao listar documentos:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadDocuments();
+    const savedKey = localStorage.getItem("gemini_api_key");
+    if (savedKey) setApiKey(savedKey);
+  }, []);
+
+  const handleApiKeyChange = (val: string) => {
+    setApiKey(val);
+    localStorage.setItem("gemini_api_key", val);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!apiKey.trim()) {
+      alert("Por favor, forneça a chave de API do Gemini para calcular os embeddings do arquivo.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const res = await uploadKBDocument(file, apiKey);
+      alert(res.message);
+      await loadDocuments();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(`Erro ao enviar arquivo: ${msg}`);
+    }
+    setUploading(false);
+  };
+
+  const handleDeleteDoc = async (id: string) => {
+    if (!confirm("Deseja realmente excluir este documento e todos os seus blocos vetoriais?")) return;
+    try {
+      await deleteKBDocument(id);
+      await loadDocuments();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(`Erro ao excluir documento: ${msg}`);
+    }
+  };
 
   const handleTriage = async () => {
     if (!triageText.trim()) return;
@@ -40,7 +95,7 @@ export default function AiOpsPage() {
   const handleKBSearch = async () => {
     if (!kbQuery.trim()) return;
     try {
-      const data = await kbSearch(kbQuery);
+      const data = await kbSearch(kbQuery, apiKey.trim() || undefined);
       setKbResults(data);
       if (data.gap_detected) {
         const d = await getKBDrafts();
@@ -61,7 +116,7 @@ export default function AiOpsPage() {
     setChatInput("");
     setChatLoading(true);
     try {
-      const res = await geminiChat(userMsg, apiKey, geminiModel);
+      const res = await geminiChat(userMsg, apiKey, geminiModel, useRag);
       setChatMessages((prev) => [...prev, { role: "assistant", text: res.reply }]);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -124,6 +179,58 @@ export default function AiOpsPage() {
             </button>
           </div>
 
+          {/* RAG Documents Management Panel */}
+          <div className="border-t border-border-dark pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase text-text-low">Documentos da Base (RAG)</h4>
+              <label className="cursor-pointer rounded-lg bg-brand/15 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/20 transition-colors">
+                {uploading ? "Carregando..." : "+ Enviar Documento"}
+                <input
+                  type="file"
+                  accept=".txt,.md,.json,.csv,.log"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
+            </div>
+
+            {documents.length === 0 ? (
+              <p className="text-xs text-text-low italic">Nenhum documento carregado. Envie arquivos para habilitar RAG semântico.</p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between rounded-xl border border-border-dark bg-surface-dark/50 p-2.5 hover:border-brand/30 transition-all">
+                    <div className="flex items-center gap-2 overflow-hidden mr-2">
+                      <span className="text-base flex-shrink-0">📄</span>
+                      <div className="overflow-hidden">
+                        <p className="truncate text-xs font-semibold text-text-high" title={doc.filename}>{doc.filename}</p>
+                        <p className="text-[10px] text-text-low">{new Date(doc.created_at * 1000).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <a
+                        href={`/api/ai/kb/documents/${doc.id}/download`}
+                        download
+                        title="Download"
+                        className="rounded-lg bg-surface-dark-card p-1 text-xs text-text-medium border border-border-dark hover:border-brand hover:text-brand transition-colors"
+                      >
+                        📥
+                      </a>
+                      <button
+                        onClick={() => handleDeleteDoc(doc.id)}
+                        title="Excluir"
+                        className="rounded-lg bg-surface-dark-card p-1 text-xs text-danger border border-border-dark hover:border-danger/50 hover:bg-danger/5 transition-colors"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {kbResults && (
             <div className="space-y-3 animate-fade-in-up">
               {kbResults.results.length > 0 ? (
@@ -174,10 +281,19 @@ export default function AiOpsPage() {
             <input
               type="password"
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              onChange={(e) => handleApiKeyChange(e.target.value)}
               placeholder="API Key do Gemini"
-              className="w-48 rounded-xl border border-border-dark bg-surface-dark px-3 py-1.5 text-xs text-text-high placeholder:text-text-low focus:border-brand focus:outline-none"
+              className="w-40 rounded-xl border border-border-dark bg-surface-dark px-3 py-1.5 text-xs text-text-high placeholder:text-text-low focus:border-brand focus:outline-none"
             />
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={useRag}
+                onChange={(e) => setUseRag(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-border-dark bg-surface-dark text-brand focus:ring-brand cursor-pointer"
+              />
+              <span className="text-xs font-semibold text-text-medium">Ativar RAG</span>
+            </label>
             <select
               value={geminiModel}
               onChange={(e) => setGeminiModel(e.target.value)}
