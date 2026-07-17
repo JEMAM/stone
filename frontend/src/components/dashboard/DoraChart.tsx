@@ -9,6 +9,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { useState, useEffect } from "react";
 import { Radar } from "react-chartjs-2";
 import type { Metrics } from "@/lib/types";
 
@@ -18,7 +19,42 @@ interface DoraChartProps {
   metrics: Metrics;
 }
 
+function useTheme() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const isLight = document.documentElement.classList.contains("light");
+    setTheme(isLight ? "light" : "dark");
+
+    const observer = new MutationObserver(() => {
+      const isLightNow = document.documentElement.classList.contains("light");
+      setTheme(isLightNow ? "light" : "dark");
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
 export default function DoraChart({ metrics }: DoraChartProps) {
+  const theme = useTheme();
+  const isLight = theme === "light";
+
+  const textColor = isLight ? "#1E2329" : "#f3f4f6";
+  const labelColor = isLight ? "#374151" : "#9ca3af";
+  const gridColor = isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.08)";
+  const angleColor = isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.05)";
+  
+  const metaBg = isLight ? "rgba(0, 0, 0, 0.03)" : "rgba(255, 255, 255, 0.05)";
+  const metaBorder = isLight ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.2)";
+  const metaPoint = isLight ? "rgba(0, 0, 0, 0.35)" : "rgba(255, 255, 255, 0.4)";
+
   // Map actual metrics to DORA scoring
   const dfScore = Math.min((metrics.deployment_frequency / 12) * 100, 100);
   const ltScore = Math.max(10, 100 - metrics.lead_time_for_changes / 1.5);
@@ -47,11 +83,11 @@ export default function DoraChart({ metrics }: DoraChartProps) {
       {
         label: "Metas Limites do SLA",
         data: [60, 50, 80, 70],
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-        borderColor: "rgba(255, 255, 255, 0.2)",
+        backgroundColor: metaBg,
+        borderColor: metaBorder,
         borderWidth: 1,
         borderDash: [5, 5],
-        pointBackgroundColor: "rgba(255, 255, 255, 0.4)",
+        pointBackgroundColor: metaPoint,
         pointBorderColor: "transparent",
       },
     ],
@@ -63,16 +99,17 @@ export default function DoraChart({ metrics }: DoraChartProps) {
     scales: {
       r: {
         angleLines: {
-          color: "rgba(255, 255, 255, 0.05)",
+          color: angleColor,
         },
         grid: {
-          color: "rgba(255, 255, 255, 0.08)",
+          color: gridColor,
         },
         pointLabels: {
-          color: "#9ca3af",
+          color: labelColor,
           font: {
-            size: 10,
+            size: 10.5,
             family: "Inter, sans-serif",
+            weight: "bold" as const,
           },
         },
         ticks: {
@@ -85,7 +122,7 @@ export default function DoraChart({ metrics }: DoraChartProps) {
     plugins: {
       legend: {
         labels: {
-          color: "#f3f4f6",
+          color: textColor,
           font: {
             family: "Inter, sans-serif",
             size: 11,

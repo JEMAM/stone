@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { useState, useEffect } from "react";
 import { Chart } from "react-chartjs-2";
 import type { Metrics } from "@/lib/types";
 
@@ -29,7 +30,37 @@ interface SlaChartProps {
   metrics: Metrics;
 }
 
+function useTheme() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const isLight = document.documentElement.classList.contains("light");
+    setTheme(isLight ? "light" : "dark");
+
+    const observer = new MutationObserver(() => {
+      const isLightNow = document.documentElement.classList.contains("light");
+      setTheme(isLightNow ? "light" : "dark");
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
 export default function SlaChart({ metrics }: SlaChartProps) {
+  const theme = useTheme();
+  const isLight = theme === "light";
+
+  const textColor = isLight ? "#1E2329" : "#f3f4f6";
+  const labelColor = isLight ? "#374151" : "#9ca3af";
+  const gridColor = isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.05)";
+
   const data = {
     labels: [
       "FRT (segundos)",
@@ -77,12 +108,13 @@ export default function SlaChart({ metrics }: SlaChartProps) {
     scales: {
       y: {
         grid: {
-          color: "rgba(255, 255, 255, 0.05)",
+          color: gridColor,
         },
         ticks: {
-          color: "#9ca3af",
+          color: labelColor,
           font: {
             size: 9,
+            weight: "bold" as const,
           },
         },
       },
@@ -91,9 +123,10 @@ export default function SlaChart({ metrics }: SlaChartProps) {
           display: false,
         },
         ticks: {
-          color: "#9ca3af",
+          color: labelColor,
           font: {
             size: 10,
+            weight: "bold" as const,
           },
         },
       },
@@ -101,7 +134,7 @@ export default function SlaChart({ metrics }: SlaChartProps) {
     plugins: {
       legend: {
         labels: {
-          color: "#f3f4f6",
+          color: textColor,
           font: {
             family: "Inter, sans-serif",
             size: 11,
